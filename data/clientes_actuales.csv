@@ -1,0 +1,53 @@
+nombre,rating,tipo_cocina,zona,num_resenas,direccion,telefono,precio,latitud,longitud
+Hotel Europa,4.3,Hotel Internacional,Centro,856,"Calle Tiahuanacu 64",22315656,$$$,-16.4989,-68.1345
+Cafe Typica Bosque,4.6,Cafeteria Especial,Zona Sur,423,"Bosque Central",71234890,$$,-16.5423,-68.0712
+Muela del Diablo,4.5,Internacional Gourmet,Zona Sur,534,"Calle 17 Calacoto",22771456,$$$,-16.5367,-68.0756
+Hierro Brothers,4.4,Parrilla Carnes,San Miguel,378,"Av. Montenegro",71456234,$$,-16.5445,-68.0689
+Servicios Gastronomicos del Sur,4.3,Catering Eventos,Calacoto,289,"Calle 15 Calacoto",22774523,$$,-16.5378,-68.0745
+Vainilla Cafe,4.7,Cafeteria Reposteria,Sopocachi,612,"Av. 20 de Octubre",71567890,$$,-16.5167,-68.1267
+Limonada Patria,4.5,Jugos Natural Comida,Centro,445,"Av. Mariscal Santa Cruz",71678901,$,-16.4978,-68.1334
+Roasters Specialty Coffee,4.6,Cafeteria Premium,Sopocachi,589,"Calle Sucre Mamani",71789012,$$,-16.5178,-68.1256
+Club Alemán,4.4,Restaurant Internacional,Zona Sur,423,"Av. Arce 2395",22423789,$$$,-16.5289,-68.0867
+Typica Obrajes,4.7,Cafeteria Especial,Obrajes,512,"Calle 16 Obrajes",71890123,$$,-16.5234,-68.1123
+Casa del Camión,4.3,Comida Boliviana,Calacoto,334,"Calle 15 Calacoto",22775234,$$,-16.5367,-68.0756
+Typica Miraflores,4.6,Cafeteria Especial,Miraflores,456,"Av. Saavedra Miraflores",71901234,$$,-16.5245,-68.0923
+Typica San Miguel,4.7,Cafeteria Especial,San Miguel,498,"Zona San Miguel",72012345,$$,-16.5456,-68.0701
+Typica Centro,4.5,Cafeteria Especial,Centro,567,"Calle Comercio Centro",72123456,$$,-16.4989,-68.1345
+Asado Restaurant,4.6,Parrilla Argentina,Calacoto,623,"Calle 17 Calacoto",22776789,$$$,-16.5378,-68.0745
+Molto Pie,4.4,Pizzeria Italiana,Sopocachi,389,"Calle Guachalla",71234567,$$,-16.5167,-68.1256
+Typica Achumani,4.6,Cafeteria Especial,Achumani,434,"Zona Achumani",72234567,$$,-16.5512,-68.0623
+Alejandro Restaurant,4.5,Internacional Premium,Calacoto,512,"Plaza Mundial Achumani",22778901,$$$,-16.5489,-68.0645
+Cueva Medusa,4.3,Bar Restaurant,Copacabana,298,"Copacabana Lago",71345678,$$,-16.1667,-69.0833
+Hotel Rosario,4.4,Hotel Restaurant,Calacoto,678,"Calle 15 Calacoto",22441111,$$,-16.5367,-68.0756
+Queseria Suiza,4.6,Delicatessen Suiza,Santa Cruz,245,"Carretera al Norte Buena Vista",33456789,$$$,-17.7833,-63.1821
+Papi Steak,4.5,Parrilla Carnes,Sopocachi,445,"Zona Sopocachi",71456789,$$,-16.5178,-68.1267
+Vega Carrera Restaurant,4.3,Comida Internacional,Cota Cota,312,"Calle 26 Cota Cota",22789012,$$,-16.5523,-68.0934
+Cueva Melaza,4.4,Bar Restaurant,Calacoto,389,"Calle 17 Calacoto",22779123,$$,-16.5378,-68.0745
+Typica Loayza,4.6,Cafeteria Especial,Centro,456,"Mercado Loayza",72345678,$$,-16.4978,-68.1345
+Banquina Food Lab,4.7,Fusion Contemporaneo,Achocalla,234,"Achocalla",71567234,$$$,-16.5589,-68.1456
+Mallgeria Fuca,4.5,Delicatessen,Sopocachi,378,"Calle Mallgeria Sopocachi",71678345,$$,-16.5167,-68.1267
+Restaurant Ivana,4.4,Internacional Premium,Calacoto,467,"Av. Montenegro Calacoto",22771234,$$$,-16.5356,-68.0767
+Casa Blanca,4.5,Internacional,Calacoto,423,"Calle 16 Calacoto",22772345,$$,-16.5378,-68.0745
+Typica Oruro,4.6,Cafeteria Especial,Oruro,198,"Oruro Centro",52789012,$$,-17.9833,-67.1167
+Restaurant Florida,4.3,Comida Internacional,Calacoto,345,"Calacoto Florida",71789123,$$,-16.5389,-68.0734
+Multicine,4.2,Cine Snack Bar,Centro,567,"Av. Arce",22415678,$,-16.5033,-68.1234
+Mediterráneo,4.6,Cocina Mediterranea,Sopocachi,534,"Sopocachi Centro",71890234,$$$,-16.5178,-68.1267
+Clemente Restaurant,4.4,Comida Boliviana,Centro,389,"Centro La Paz",71901345,$$,-16.4989,-68.1345
+Restaurant Obrajes,4.3,Comida Internacional,Obrajes,298,"Obrajes Zona",22456789,$$,-16.5234,-68.1123
+Sopocachi Eventos,4.5,Catering Eventos,Calacoto,412,"Calle 15 Calacoto",22773456,$$,-16.5367,-68.0756
+Café Cocina Alavista,4.6,Cafeteria Cocina,Sopocachi,445,"Sopocachi",71012345,$$,-16.5167,-68.1256
+De La Pelle Restaurant,4.7,Italiana Gourmet,Achumani,523,"Calle 11 Achumani",22780123,$$$,-16.5512,-68.0645
+Hamman Restaurant,4.4,Internacional,Calacoto,378,"Calle 15 Calacoto",22774567,$$,-16.5378,-68.0745
+Fundación Arcoiris,4.2,Comida Social,Villa Copacabana,234,"Villa Copacabana",71123456,$,-16.5123,-68.0789
+Valenciana Gourmet,4.6,Española Gourmet,Miraflores,456,"Miraflores Centro",71234567,$$$,-16.5245,-68.0923
+Cafe Bresso,4.5,Cafeteria Italiana,Calacoto,389,"San Miguel Calacoto",71345678,$$,-16.5456,-68.0712
+Cafe Mercurio,4.4,Cafeteria Premium,Santa Cruz,298,"Santa Cruz Centro",33567890,$$,-17.7833,-63.1821
+Los Mari Restaurant,4.5,Comida Casera,Calacoto,412,"Calle 15 Calacoto",22775678,$$,-16.5367,-68.0756
+Sauce Restaurant,4.6,Fusion Boliviana,San Miguel,467,"Av. Montenegro San Miguel",71456890,$$,-16.5445,-68.0701
+Restaurant Santa Cruz,4.3,Comida Internacional,Santa Cruz,234,"Santa Cruz",33678901,$$,-17.7833,-63.1821
+Restaurant Cochabamba,4.4,Comida Tradicional,Cochabamba,312,"Cochabamba Centro",44789012,$$,-17.3895,-66.1568
+Restaurant Calacoto,4.5,Internacional,Calacoto,378,"Calacoto",22776789,$$,-16.5378,-68.0745
+Restaurant San Miguel,4.4,Comida Casera,San Miguel,345,"San Miguel",71567901,$$,-16.5456,-68.0712
+Typica Miraflores Saavedra,4.7,Cafeteria Especial,Miraflores,512,"Av. Saavedra Miraflores",72678912,$$,-16.5245,-68.0923
+Germatal,4.3,Productos Lacteos,Miraflores,189,"Calle Rene Moreno 1383",22456123,$$,-16.5234,-68.0934
+Ariel Cafe,4.5,Cafeteria,Sopocachi,267,"Sopocachi",71789234,$$,-16.5178,-68.1267
