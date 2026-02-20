@@ -7,6 +7,7 @@ from app.config import settings
 from app.database import Base
 # Import all models so Alembic can detect them
 from app.users.models import User  # noqa: F401
+from app.auth.models import OTPCode  # noqa: F401
 from app.restaurants.models import (  # noqa: F401
     Restaurant, RestaurantNote, RestaurantStatusChange,
     RestaurantScore, ScrapingImport, RestaurantMLScore, MLRunMetadata,

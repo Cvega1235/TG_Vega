@@ -11,6 +11,17 @@ class Settings(BaseSettings):
     SUPERADMIN_EMAIL: str = "admin@donpiotr.com"
     SUPERADMIN_PASSWORD: str = "admin123"
     ALGORITHM: str = "HS256"
+    TRIPADVISOR_API_KEY: str = ""
+
+    # SMTP / Email (Gmail)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+
+    # OTP
+    OTP_EXPIRE_MINUTES: int = 5
 
     @property
     def cors_origins_list(self) -> List[str]:

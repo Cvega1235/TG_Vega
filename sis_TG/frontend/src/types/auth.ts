@@ -18,3 +18,14 @@ export interface TokenResponse {
   refresh_token: string;
   token_type: string;
 }
+
+export interface OTPResponse {
+  otp_token: string;
+  email: string;
+  message: string;
+}
+
+export interface VerifyOTPRequest {
+  otp_token: string;
+  code: string;
+}

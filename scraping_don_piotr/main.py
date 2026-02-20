@@ -19,6 +19,7 @@ from scraping_don_piotr.bolivia_scraper import BoliviaEnTusManosScraper
 from scraping_don_piotr.gmaps_scraper import GoogleMapsScraper
 from scraping_don_piotr.logger import logger
 from scraping_don_piotr.tripadvisor_scraper import TripAdvisorScraper
+from scraping_don_piotr.tripadvisor_api import TripAdvisorAPIScraper
 
 
 def log_statistics(results: List[Dict[str, Any]]) -> None:
@@ -123,7 +124,7 @@ def main() -> List[Dict[str, Any]]:
     )
     parser.add_argument(
         "--source",
-        choices=["gmaps", "tripadvisor", "bolivia", "all"],
+        choices=["gmaps", "tripadvisor", "tripadvisor_api", "bolivia", "all"],
         default="all",
         help="Fuente de datos a extraer (default: all)",
     )
@@ -184,6 +185,17 @@ def main() -> List[Dict[str, Any]]:
         trip_data = trip.scrape(limit=args.limit)
         all_results.extend(trip_data)
         logger.info(f"TripAdvisor: {len(trip_data)} registros")
+
+    # TripAdvisor API (incluido en "all")
+    if args.source in ["tripadvisor_api", "all"]:
+        logger.info("Iniciando scraping de TripAdvisor (API oficial)...")
+        try:
+            trip_api = TripAdvisorAPIScraper()
+            trip_api_data = trip_api.scrape(limit=args.limit)
+            all_results.extend(trip_api_data)
+            logger.info(f"TripAdvisor API: {len(trip_api_data)} registros ({trip_api.api_calls} llamadas API)")
+        except ValueError as e:
+            logger.warning(f"TripAdvisor API no disponible: {e}")
 
     # Bolivia en tus Manos
     if args.source in ["bolivia", "all"]:

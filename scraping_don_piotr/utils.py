@@ -83,7 +83,9 @@ def extract_number(text: str) -> Optional[float]:
     """Extrae el primer número de un string"""
     if not text:
         return None
-    match = re.search(r'(\d+(?:[.,]\d+)?)', text.replace(',', ''))
+    # Reemplazar coma decimal por punto (formato español: "4,3" → "4.3")
+    text = text.replace(',', '.')
+    match = re.search(r'(\d+(?:\.\d+)?)', text)
     return float(match.group(1)) if match else None
 
 def validate_rating(rating: float) -> bool:

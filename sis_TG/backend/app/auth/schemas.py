@@ -14,3 +14,14 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class OTPResponse(BaseModel):
+    otp_token: str
+    email: str
+    message: str = "Codigo de verificacion enviado a tu email"
+
+
+class VerifyOTPRequest(BaseModel):
+    otp_token: str
+    code: str

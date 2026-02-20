@@ -1,23 +1,20 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    # bcrypt has a 72-byte limit, so we truncate if necessary
     password_bytes = password.encode('utf-8')[:72]
-    return pwd_context.hash(password_bytes.decode('utf-8', errors='ignore'))
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # bcrypt has a 72-byte limit, so we truncate if necessary
     password_bytes = plain_password.encode('utf-8')[:72]
-    return pwd_context.verify(password_bytes.decode('utf-8', errors='ignore'), hashed_password)
+    return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
 
 
 def create_access_token(data: dict) -> str:
@@ -40,3 +37,16 @@ def decode_token(token: str) -> dict | None:
         return payload
     except JWTError:
         return None
+
+
+def generate_otp_code() -> str:
+    """Genera un codigo OTP de 6 digitos numerico aleatorio."""
+    return f"{secrets.randbelow(1000000):06d}"
+
+
+def create_otp_token(user_id: str) -> str:
+    """Crea un JWT temporal tipo 'otp' que expira en OTP_EXPIRE_MINUTES."""
+    to_encode = {"sub": user_id, "type": "otp"}
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+    to_encode["exp"] = expire
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
