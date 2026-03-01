@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.restaurants.models import Restaurant, RestaurantScore
+from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore
 
 
 class DashboardService:
@@ -13,12 +13,28 @@ class DashboardService:
         avg_rating = self.db.query(func.avg(Restaurant.rating)).filter(
             Restaurant.rating.isnot(None)
         ).scalar()
-        with_coords = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.latitud.isnot(None), Restaurant.longitud.isnot(None)
+
+        high_affinity = self.db.query(func.count(RestaurantMLScore.id)).filter(
+            RestaurantMLScore.composite_score >= 70
         ).scalar() or 0
-        with_phone = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.telefono.isnot(None), Restaurant.telefono != ""
+
+        clients_count = self.db.query(func.count(Restaurant.id)).filter(
+            Restaurant.status == "cliente"
         ).scalar() or 0
+
+        with_embutidos = self.db.query(func.count(Restaurant.id)).filter(
+            Restaurant.tiene_embutidos == True  # noqa: E712
+        ).scalar() or 0
+
+        to_contact = (
+            self.db.query(func.count(Restaurant.id))
+            .join(RestaurantMLScore)
+            .filter(
+                Restaurant.status == "nuevo",
+                RestaurantMLScore.composite_score >= 60,
+            )
+            .scalar() or 0
+        )
 
         status_rows = (
             self.db.query(Restaurant.status, func.count(Restaurant.id))
@@ -37,8 +53,10 @@ class DashboardService:
         return {
             "total_restaurants": total,
             "avg_rating": round(float(avg_rating), 2) if avg_rating else None,
-            "total_with_coordinates": with_coords,
-            "total_with_phone": with_phone,
+            "high_affinity_count": high_affinity,
+            "clients_count": clients_count,
+            "with_embutidos_count": with_embutidos,
+            "to_contact_count": to_contact,
             "status_counts": status_counts,
             "source_counts": source_counts,
         }
@@ -127,7 +145,8 @@ class DashboardService:
             self.db.query(
                 Restaurant.id, Restaurant.nombre, Restaurant.zona,
                 Restaurant.fuente, Restaurant.rating, Restaurant.status,
-                RestaurantScore.total_score,
+                RestaurantScore.total_score, Restaurant.tipo_cocina,
+                Restaurant.tiene_embutidos,
             )
             .join(RestaurantScore)
             .order_by(RestaurantScore.total_score.desc())
@@ -143,6 +162,8 @@ class DashboardService:
                 "rating": float(row[4]) if row[4] else None,
                 "status": row[5],
                 "total_score": float(row[6]),
+                "tipo_cocina": row[7],
+                "tiene_embutidos": row[8],
             }
             for row in rows
         ]

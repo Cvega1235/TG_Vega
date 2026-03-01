@@ -21,6 +21,9 @@ class RestaurantResponse(BaseModel):
     zona: str | None = None
     status: str
     scraped_at: datetime | None = None
+    tiene_embutidos: bool | None = None
+    productos_detectados: str | None = None
+    menu_analizado_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

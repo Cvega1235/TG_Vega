@@ -30,6 +30,7 @@ class RestaurantService:
         sort_by: str = "id",
         sort_order: str = "asc",
         has_coordinates: bool | None = None,
+        tiene_embutidos: bool | None = None,
     ) -> dict:
         query = self.db.query(Restaurant).outerjoin(RestaurantScore)
 
@@ -56,6 +57,8 @@ class RestaurantService:
             query = query.filter(
                 Restaurant.latitud.isnot(None), Restaurant.longitud.isnot(None)
             )
+        if tiene_embutidos is not None:
+            query = query.filter(Restaurant.tiene_embutidos == tiene_embutidos)
 
         # Sorting
         sort_column = getattr(Restaurant, sort_by, Restaurant.id)

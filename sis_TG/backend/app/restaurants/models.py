@@ -46,6 +46,14 @@ class Restaurant(Base):
     scraped_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Análisis de menú / productos
+    tiene_embutidos: Mapped[bool | None] = mapped_column(
+        nullable=True, default=None
+    )
+    productos_detectados: Mapped[str | None] = mapped_column(Text, nullable=True)
+    menu_analizado_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )

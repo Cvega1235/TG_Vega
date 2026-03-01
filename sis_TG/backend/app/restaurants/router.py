@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,8 +11,55 @@ from app.restaurants.schemas import (
     PaginatedRestaurants,
 )
 from app.restaurants.service import RestaurantService
+from app.restaurants.models import Restaurant
 
 router = APIRouter(prefix="/api/restaurants", tags=["restaurants"])
+
+
+@router.get("/menu-analysis/summary")
+def menu_analysis_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    """Resumen del análisis de menús: cuántos restaurantes usan embutidos."""
+    total = db.query(func.count(Restaurant.id)).scalar()
+    analizados = db.query(func.count(Restaurant.id)).filter(
+        Restaurant.menu_analizado_at.isnot(None)
+    ).scalar()
+    con_embutidos = db.query(func.count(Restaurant.id)).filter(
+        Restaurant.tiene_embutidos == True  # noqa: E712
+    ).scalar()
+    sin_embutidos = db.query(func.count(Restaurant.id)).filter(
+        Restaurant.tiene_embutidos == False  # noqa: E712
+    ).scalar()
+
+    # Top productos detectados
+    rows = db.query(Restaurant.productos_detectados).filter(
+        Restaurant.productos_detectados.isnot(None),
+        Restaurant.productos_detectados != "",
+    ).all()
+
+    conteo_productos: dict[str, int] = {}
+    for (productos_str,) in rows:
+        for prod in productos_str.split(", "):
+            prod = prod.strip()
+            if prod:
+                conteo_productos[prod] = conteo_productos.get(prod, 0) + 1
+
+    top_productos = sorted(
+        [{"producto": k, "count": v} for k, v in conteo_productos.items()],
+        key=lambda x: x["count"],
+        reverse=True,
+    )
+
+    return {
+        "total_restaurantes": total,
+        "total_analizados": analizados,
+        "con_embutidos": con_embutidos,
+        "sin_embutidos": sin_embutidos,
+        "porcentaje_con_embutidos": round(con_embutidos / analizados * 100, 1) if analizados else 0,
+        "top_productos": top_productos[:10],
+    }
 
 
 @router.get("", response_model=PaginatedRestaurants)
@@ -28,6 +76,7 @@ def list_restaurants(
     sort_by: str = "id",
     sort_order: str = "asc",
     has_coordinates: bool | None = None,
+    tiene_embutidos: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
@@ -37,6 +86,7 @@ def list_restaurants(
         status=status, rating_min=rating_min, rating_max=rating_max,
         tipo_cocina=tipo_cocina, search=search, sort_by=sort_by,
         sort_order=sort_order, has_coordinates=has_coordinates,
+        tiene_embutidos=tiene_embutidos,
     )
 
 

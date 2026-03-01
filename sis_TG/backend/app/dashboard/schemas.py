@@ -4,8 +4,10 @@ from pydantic import BaseModel
 class DashboardStats(BaseModel):
     total_restaurants: int
     avg_rating: float | None
-    total_with_coordinates: int
-    total_with_phone: int
+    high_affinity_count: int
+    clients_count: int
+    with_embutidos_count: int
+    to_contact_count: int
     status_counts: dict[str, int]
     source_counts: dict[str, int]
 
@@ -33,5 +35,7 @@ class TopScoredItem(BaseModel):
     rating: float | None = None
     status: str
     total_score: float
+    tipo_cocina: str | None = None
+    tiene_embutidos: bool | None = None
 
     model_config = {"from_attributes": True}
