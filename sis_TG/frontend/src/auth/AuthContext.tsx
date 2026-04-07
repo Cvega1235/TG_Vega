@@ -9,6 +9,7 @@ interface AuthContextType {
   verifyOTP: (otpToken: string, code: string) => Promise<void>;
   logout: () => void;
   hasRole: (minRole: string) => boolean;
+  hasPermission: (page: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,8 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (ROLE_LEVELS[user.role] || 0) >= (ROLE_LEVELS[minRole] || 0);
   };
 
+  const hasPermission = (page: string): boolean => {
+    if (!user) return false;
+    // admin y superadmin siempre tienen acceso a todo
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
+    // sin permisos definidos = acceso a todo (compatibilidad con usuarios existentes)
+    if (!user.permissions || user.permissions.length === 0) return true;
+    return user.permissions.includes(page);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyOTP, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOTP, logout, hasRole, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

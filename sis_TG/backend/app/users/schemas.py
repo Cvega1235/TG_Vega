@@ -2,12 +2,15 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
+ALL_PERMISSIONS = ["dashboard", "restaurants", "clients", "ml-analysis", "reports"]
+
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
     role: str = "viewer"
+    permissions: list[str] | None = None  # None = acceso a todas las secciones
 
 
 class UserUpdate(BaseModel):
@@ -15,6 +18,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     role: str | None = None
     is_active: bool | None = None
+    permissions: list[str] | None = None
 
 
 class UserUpdateMe(BaseModel):
@@ -28,6 +32,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    permissions: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 

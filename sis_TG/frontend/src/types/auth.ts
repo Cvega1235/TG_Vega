@@ -4,6 +4,7 @@ export interface User {
   full_name: string;
   role: 'superadmin' | 'admin' | 'analista' | 'viewer';
   is_active: boolean;
+  permissions: string[] | null;
   created_at: string;
   updated_at: string;
 }

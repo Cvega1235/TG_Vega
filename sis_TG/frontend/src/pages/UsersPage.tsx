@@ -129,6 +129,14 @@ export default function UsersPage() {
   );
 }
 
+const ALL_PAGES = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'restaurants', label: 'Restaurantes' },
+  { key: 'clients', label: 'Clientes' },
+  { key: 'ml-analysis', label: 'Analisis ML' },
+  { key: 'reports', label: 'Reportes' },
+];
+
 function UserFormModal({
   user,
   availableRoles,
@@ -145,11 +153,29 @@ function UserFormModal({
     password: '',
     full_name: user?.full_name || '',
     role: user?.role || availableRoles[0] || 'viewer',
+    permissions: user?.permissions ?? ALL_PAGES.map((p) => p.key),
   });
+
+  const togglePermission = (key: string) => {
+    const current = form.permissions ?? ALL_PAGES.map((p) => p.key);
+    const updated = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : [...current, key];
+    setForm({ ...form, permissions: updated });
+  };
+
+  const allSelected = (form.permissions ?? []).length === ALL_PAGES.length;
+
+  const toggleAll = () => {
+    setForm({
+      ...form,
+      permissions: allSelected ? [] : ALL_PAGES.map((p) => p.key),
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           {user ? 'Editar Usuario' : 'Nuevo Usuario'}
         </h3>
@@ -195,7 +221,49 @@ function UserFormModal({
               ))}
             </select>
           </div>
+
+          {/* Permisos por sección */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Secciones visibles
+              </label>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-xs text-primary-600 hover:underline"
+              >
+                {allSelected ? 'Quitar todas' : 'Seleccionar todas'}
+              </button>
+            </div>
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {ALL_PAGES.map(({ key, label }) => {
+                const checked = (form.permissions ?? []).includes(key);
+                return (
+                  <label
+                    key={key}
+                    className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePermission(key)}
+                      className="w-4 h-4 accent-primary-600"
+                    />
+                    <span className="text-sm text-gray-700">{label}</span>
+                    {!checked && (
+                      <span className="ml-auto text-xs text-red-400">Sin acceso</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Los administradores siempre tienen acceso a todo sin importar esta configuracion.
+            </p>
+          </div>
         </div>
+
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}

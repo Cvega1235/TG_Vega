@@ -128,7 +128,7 @@ class GoogleMapsScraper(BaseScraper):
                 return zona
         return None
 
-    def extract_restaurant_data(self, url: str) -> Optional[RestaurantData]:
+    def extract_restaurant_data(self, url: str, zona_fallback: Optional[str] = None) -> Optional[RestaurantData]:
         """Extrae datos de un restaurante individual de Google Maps.
 
         Args:
@@ -163,15 +163,19 @@ class GoogleMapsScraper(BaseScraper):
             # Dirección
             direccion = self._safe_find(
                 config.GMAPS_SELECTORS["direccion"],
-                config.GMAPS_SELECTORS["direccion_fallback"],
-                attribute="aria-label",
             )
+            # Fallback: botón con aria-label (estructura antigua)
+            if not direccion:
+                direccion = self._safe_find(
+                    config.GMAPS_SELECTORS["direccion_fallback"],
+                    attribute="aria-label",
+                )
             # Limpiar prefijo "Dirección: " si existe
             if direccion and direccion.lower().startswith("dirección:"):
                 direccion = direccion[len("dirección:"):].strip()
 
             # Zona
-            zona = self._detect_zona(direccion)
+            zona = self._detect_zona(direccion) or zona_fallback
 
             # Teléfono
             telefono_raw = self._safe_find(
@@ -207,6 +211,7 @@ class GoogleMapsScraper(BaseScraper):
             # Categoría
             categoria = self._safe_find(
                 config.GMAPS_SELECTORS["categoria"],
+                config.GMAPS_SELECTORS["categoria_fallback"],
             )
 
             # Coordenadas
@@ -321,6 +326,8 @@ class GoogleMapsScraper(BaseScraper):
         """
         url = config.GMAPS_SEARCH_TEMPLATE.format(query=query)
         zona_name = query.replace("+", " ").replace("restaurantes ", "")
+        # Extraer solo el nombre de zona (sin " La Paz Bolivia")
+        zona_fallback = zona_name.replace(" La Paz Bolivia", "").strip()
 
         try:
             # Driver fresco para cada zona
@@ -353,7 +360,7 @@ class GoogleMapsScraper(BaseScraper):
                     break
 
                 try:
-                    data = self.extract_restaurant_data(rest_url)
+                    data = self.extract_restaurant_data(rest_url, zona_fallback=zona_fallback)
                     if data:
                         self.results.append(data)
                         count += 1

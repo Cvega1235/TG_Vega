@@ -44,6 +44,7 @@ class UserService:
             hashed_password=hash_password(data.password),
             full_name=data.full_name,
             role=data.role,
+            permissions=data.permissions,
             created_by=current_user.id,
         )
         self.db.add(user)
@@ -84,6 +85,8 @@ class UserService:
             user.role = data.role
         if data.is_active is not None:
             user.is_active = data.is_active
+        if data.permissions is not None:
+            user.permissions = data.permissions
 
         self.db.commit()
         self.db.refresh(user)

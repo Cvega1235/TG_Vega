@@ -10,6 +10,7 @@ import RestaurantDetailPage from './pages/RestaurantDetailPage';
 import UsersPage from './pages/UsersPage';
 import MLAnalysisPage from './pages/MLAnalysisPage';
 import ReportsPage from './pages/ReportsPage';
+import ClientsPage from './pages/ClientsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/restaurants/:id" element={<RestaurantDetailPage />} />
               <Route path="/ml-analysis" element={<MLAnalysisPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/clients" element={<ClientsPage />} />
               <Route
                 path="/users"
                 element={

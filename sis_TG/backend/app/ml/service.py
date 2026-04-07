@@ -77,17 +77,37 @@ class MLService:
             })
         restaurants_df = pd.DataFrame(restaurant_records)
 
-        # Cargar o usar datos de clientes
+        # Cargar clientes: primero desde la BD, luego fallback al CSV
         if clients_data:
             clients_df = pd.DataFrame(clients_data)
-        elif ml_config.ICP_DATA_PATH.exists():
-            clients_df = pd.read_csv(ml_config.ICP_DATA_PATH)
         else:
-            raise ValueError(
-                f"No se encontraron datos de clientes actuales en "
-                f"{ml_config.ICP_DATA_PATH}. "
-                f"Proporcione los datos o cree el archivo CSV."
+            db_clients = (
+                self.db.query(Restaurant)
+                .filter(Restaurant.status == "cliente")
+                .all()
             )
+            if db_clients:
+                logger.info(f"Cargando {len(db_clients)} clientes desde la base de datos")
+                clients_df = pd.DataFrame([{
+                    "nombre": r.nombre,
+                    "rating": float(r.rating) if r.rating is not None else None,
+                    "tipo_cocina": r.tipo_cocina,
+                    "zona": r.zona,
+                    "num_resenas": r.num_resenas,
+                    "direccion": r.direccion,
+                    "telefono": r.telefono,
+                    "precio": r.precio,
+                    "latitud": float(r.latitud) if r.latitud is not None else None,
+                    "longitud": float(r.longitud) if r.longitud is not None else None,
+                } for r in db_clients])
+            elif ml_config.ICP_DATA_PATH.exists():
+                logger.warning("Sin clientes en BD, usando CSV de fallback")
+                clients_df = pd.read_csv(ml_config.ICP_DATA_PATH)
+            else:
+                raise ValueError(
+                    "No hay clientes en la base de datos ni archivo CSV de respaldo. "
+                    "Importe los clientes actuales primero."
+                )
 
         # Ejecutar pipeline (sin IDs en el DataFrame de features)
         restaurants_df_ml = restaurants_df.drop(columns=["id"])

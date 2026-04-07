@@ -2,17 +2,20 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 
 export default function Sidebar() {
-  const { hasRole } = useAuth();
+  const { hasRole, hasPermission } = useAuth();
 
-  const links = [
-    { to: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { to: '/restaurants', label: 'Restaurantes', icon: '🍽️' },
-    { to: '/ml-analysis', label: 'Analisis ML', icon: '🧠' },
-    { to: '/reports', label: 'Reportes', icon: '📈' },
+  const allLinks = [
+    { to: '/dashboard', label: 'Dashboard', icon: '📊', page: 'dashboard' },
+    { to: '/restaurants', label: 'Restaurantes', icon: '🍽️', page: 'restaurants' },
+    { to: '/clients', label: 'Clientes', icon: '🤝', page: 'clients' },
+    { to: '/ml-analysis', label: 'Analisis ML', icon: '🧠', page: 'ml-analysis' },
+    { to: '/reports', label: 'Reportes', icon: '📈', page: 'reports' },
   ];
 
+  const links = allLinks.filter(({ page }) => hasPermission(page));
+
   if (hasRole('admin')) {
-    links.push({ to: '/users', label: 'Usuarios', icon: '👥' });
+    links.push({ to: '/users', label: 'Usuarios', icon: '👥', page: 'users' });
   }
 
   return (
