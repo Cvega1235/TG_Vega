@@ -97,6 +97,8 @@ GMAPS_SELECTORS = {
     'horarios': 'div[aria-label*="Horario"]',
     'lat_xpath': '//meta[@itemprop="latitude"]/@content',
     'lon_xpath': '//meta[@itemprop="longitude"]/@content',
+    'website': 'a[data-item-id="authority"]',
+    'website_fallback': 'a[aria-label*="Sitio web"]',
 }
 
 # TripAdvisor Selectors (listing page - Selenium)

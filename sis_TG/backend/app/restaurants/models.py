@@ -46,7 +46,15 @@ class Restaurant(Base):
     scraped_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Sitio web propio del restaurante (extraído de Google Maps)
+    website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Texto extraído del sitio web propio mediante scraping
+    website_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    website_scrapeado_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Análisis de menú / productos
+    menu_texto_ocr: Mapped[str | None] = mapped_column(Text, nullable=True)
     tiene_embutidos: Mapped[bool | None] = mapped_column(
         nullable=True, default=None
     )

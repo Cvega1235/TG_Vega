@@ -22,7 +22,7 @@ Estructura real del sitio (verificada 2026-02):
 URL pattern: /amarillas/932/{page}/lapaz/restaurantes.html
 """
 
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -208,13 +208,18 @@ class BoliviaEnTusManosScraper(BaseScraper):
             logger.error(f"Error extrayendo tarjeta: {e}")
             return None
 
-    def scrape(self, limit: Optional[int] = None) -> List[RestaurantData]:
+    def scrape(
+        self,
+        limit: Optional[int] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> List[RestaurantData]:
         """Ejecuta el scraping completo de Bolivia en tus Manos.
 
         Recorre múltiples páginas del directorio de restaurantes.
 
         Args:
             limit: Número máximo de restaurantes a extraer.
+            progress_callback: Función opcional (mensaje, paso_actual, total_pasos).
 
         Returns:
             Lista de RestaurantData con los datos extraídos.
@@ -225,6 +230,9 @@ class BoliviaEnTusManosScraper(BaseScraper):
         for page in range(1, max_pages + 1):
             if limit and count >= limit:
                 break
+
+            if progress_callback:
+                progress_callback(f"Bolivia en tus Manos: página {page}", page, max_pages)
 
             try:
                 url = config.BOLIVIA_BASE_URL.format(page=page)

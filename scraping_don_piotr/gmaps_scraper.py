@@ -7,7 +7,7 @@ Estrategia: Busca por cada zona de La Paz para cubrir toda la ciudad,
 eliminando duplicados entre zonas.
 """
 
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -217,6 +217,17 @@ class GoogleMapsScraper(BaseScraper):
             # Coordenadas
             coords = self._extract_coordinates()
 
+            # Sitio web propio del restaurante (no Google Maps)
+            website_url = self._safe_find(
+                config.GMAPS_SELECTORS["website"],
+                config.GMAPS_SELECTORS["website_fallback"],
+                attribute="href",
+            )
+            # Ignorar links a redes sociales o Google (no son el sitio propio)
+            IGNORED_DOMAINS = ("facebook.com", "instagram.com", "google.com", "wa.me", "t.me")
+            if website_url and any(d in website_url for d in IGNORED_DOMAINS):
+                website_url = None
+
             restaurant = RestaurantData(
                 nombre=nombre,
                 fuente="Google Maps",
@@ -229,6 +240,7 @@ class GoogleMapsScraper(BaseScraper):
                 longitud=coords["longitud"],
                 categoria=categoria,
                 zona=zona,
+                website_url=website_url,
             )
 
             logger.info(f"Extraido: {nombre}")
@@ -374,7 +386,11 @@ class GoogleMapsScraper(BaseScraper):
             logger.error(f"Error scrapeando zona {zona_name}: {e}")
             return 0
 
-    def scrape(self, limit: Optional[int] = None) -> List[RestaurantData]:
+    def scrape(
+        self,
+        limit: Optional[int] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> List[RestaurantData]:
         """Ejecuta el scraping de Google Maps por zonas de La Paz.
 
         Busca en cada zona configurada para cubrir toda la ciudad,
@@ -382,15 +398,21 @@ class GoogleMapsScraper(BaseScraper):
 
         Args:
             limit: Número máximo total de restaurantes a extraer.
+            progress_callback: Función opcional (mensaje, paso_actual, total_pasos).
 
         Returns:
             Lista de RestaurantData con los datos extraídos.
         """
         try:
             total = 0
-            for query in config.GMAPS_QUERIES:
+            total_zones = len(config.GMAPS_QUERIES)
+            for idx, query in enumerate(config.GMAPS_QUERIES):
                 if limit and total >= limit:
                     break
+
+                zona_name = query.replace("+", " ").replace(" La Paz Bolivia", "").replace("restaurantes ", "")
+                if progress_callback:
+                    progress_callback(f"Google Maps: {zona_name}", idx + 1, total_zones)
 
                 remaining = (limit - total) if limit else None
                 count = self._scrape_zone(query, remaining)

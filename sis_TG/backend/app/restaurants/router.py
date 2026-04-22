@@ -12,8 +12,20 @@ from app.restaurants.schemas import (
 )
 from app.restaurants.service import RestaurantService
 from app.restaurants.models import Restaurant
+from app.restaurants.menu_analyzer import run_analysis
 
 router = APIRouter(prefix="/api/restaurants", tags=["restaurants"])
+
+
+@router.post("/menu-analysis/run")
+def run_menu_analysis(
+    force: bool = Query(False, description="Re-analizar restaurantes ya procesados"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Ejecuta el análisis de afinidad de productos Don Piotr sobre todos
+    los restaurantes. Por defecto solo procesa los no analizados aún."""
+    return run_analysis(db, force=force)
 
 
 @router.get("/menu-analysis/summary")

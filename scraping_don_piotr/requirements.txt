@@ -8,7 +8,15 @@ lxml==4.9.3
 pandas==2.1.3
 numpy==1.26.2
 
-# Database (sqlite3 viene incluido con Python, no requiere instalación)
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.25
+
+# OCR (menu_image_scraper.py)
+# Requiere también Tesseract OCR instalado en el sistema:
+# https://github.com/UB-Mannheim/tesseract/wiki (marcar "Spanish" en instalación)
+pytesseract==0.3.10
+Pillow==10.1.0
 
 # Utilities
 python-dotenv==1.0.0

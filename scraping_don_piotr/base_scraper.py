@@ -33,6 +33,7 @@ class RestaurantData:
     descripcion: Optional[str] = None
     servicios: Optional[str] = None
     zona: Optional[str] = None
+    website_url: Optional[str] = None
     scraped_at: str = field(
         default_factory=lambda: datetime.utcnow().isoformat()
     )
