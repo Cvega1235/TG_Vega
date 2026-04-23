@@ -43,9 +43,12 @@ if str(PROJECT_ROOT) not in sys.path:
 _JOBS: dict[str, dict] = {}
 _JOBS_LOCK = threading.Lock()
 
-# Zonas de Google Maps + páginas de Bolivia para calcular total_steps
-_GMAPS_ZONES = 12   # len(config.GMAPS_QUERIES)
-_BOLIVIA_PAGES = 5  # config.BOLIVIA_MAX_PAGES
+# Pasos por fuente (para calcular total_steps en la barra de progreso)
+_GMAPS_ZONES = 12        # len(config.GMAPS_QUERIES)
+_BOLIVIA_PAGES = 5       # config.BOLIVIA_MAX_PAGES
+_TRIPADVISOR_STEPS = 1   # TripAdvisor API se trata como un bloque único
+_IMPORT_STEP = 1         # importar a BD
+_WEBSITE_STEP = 1        # scraping de sitios web propios
 
 
 def get_job(job_id: str) -> Optional[dict]:
@@ -86,7 +89,10 @@ class ScrapingService:
             steps_total += _GMAPS_ZONES
         if source in ("bolivia", "all"):
             steps_total += _BOLIVIA_PAGES
-        steps_total += 1  # paso final: importar a DB
+        if source == "all":
+            steps_total += _TRIPADVISOR_STEPS
+        steps_total += _IMPORT_STEP     # importar a BD
+        steps_total += _WEBSITE_STEP    # scraping de sitios web propios
 
         with _JOBS_LOCK:
             _JOBS[job_id] = {
@@ -142,33 +148,42 @@ class ScrapingService:
         from scraping_don_piotr.gmaps_scraper import GoogleMapsScraper
 
         all_results = []
-        progress_cb = self._make_progress_callback(job_id)
+        # step_offset lleva cuenta del paso acumulado entre fuentes
+        step_offset = 0
 
         try:
-            # Google Maps
+            # ── Google Maps ──────────────────────────────────────────────────
             if source in ("gmaps", "all"):
                 logger.info("Iniciando scraper de Google Maps...")
                 self._update_job(job_id, current_step="Iniciando Google Maps...")
+                _offset = step_offset
+
+                def gmaps_cb(message: str, step: int, _total: int) -> None:
+                    with _JOBS_LOCK:
+                        if job_id in _JOBS:
+                            _JOBS[job_id]["current_step"] = message
+                            _JOBS[job_id]["steps_done"] = _offset + step
+
                 try:
                     gmaps = GoogleMapsScraper(headless=headless)
-                    gmaps_data = gmaps.scrape(limit=limit, progress_callback=progress_cb)
+                    gmaps_data = gmaps.scrape(limit=limit, progress_callback=gmaps_cb)
                     all_results.extend(gmaps_data)
                     logger.info(f"Google Maps: {len(gmaps_data)} restaurantes")
                 except Exception as e:
                     logger.error(f"Error en Google Maps scraper: {e}")
+                step_offset += _GMAPS_ZONES
 
-            # Bolivia en tus Manos
+            # ── Bolivia en tus Manos ─────────────────────────────────────────
             if source in ("bolivia", "all"):
                 logger.info("Iniciando scraper de Bolivia en tus Manos...")
                 self._update_job(job_id, current_step="Iniciando Bolivia en tus Manos...")
-                # Ajustar offset del paso para que continúe donde dejó gmaps
-                gmaps_offset = _GMAPS_ZONES if source == "all" else 0
+                _offset = step_offset
 
                 def bolivia_cb(message: str, step: int, _total: int) -> None:
                     with _JOBS_LOCK:
                         if job_id in _JOBS:
                             _JOBS[job_id]["current_step"] = message
-                            _JOBS[job_id]["steps_done"] = gmaps_offset + step
+                            _JOBS[job_id]["steps_done"] = _offset + step
 
                 try:
                     bolivia = BoliviaEnTusManosScraper()
@@ -177,10 +192,33 @@ class ScrapingService:
                     logger.info(f"Bolivia en tus Manos: {len(bolivia_data)} restaurantes")
                 except Exception as e:
                     logger.error(f"Error en Bolivia scraper: {e}")
+                step_offset += _BOLIVIA_PAGES
 
+            # ── TripAdvisor API ───────────────────────────────────────────────
+            if source == "all":
+                logger.info("Iniciando scraper de TripAdvisor API...")
+                self._update_job(
+                    job_id,
+                    current_step="TripAdvisor API: buscando restaurantes...",
+                    steps_done=step_offset,
+                )
+                try:
+                    from scraping_don_piotr.tripadvisor_api import TripAdvisorAPIScraper
+                    trip_api = TripAdvisorAPIScraper()
+                    trip_data = trip_api.scrape(limit=limit)
+                    all_results.extend(trip_data)
+                    logger.info(f"TripAdvisor API: {len(trip_data)} restaurantes")
+                except ValueError as e:
+                    logger.warning(f"TripAdvisor API no disponible: {e}")
+                except Exception as e:
+                    logger.error(f"Error en TripAdvisor API scraper: {e}")
+                step_offset += _TRIPADVISOR_STEPS
+
+            # ── Importar a BD ────────────────────────────────────────────────
             self._update_job(
                 job_id,
                 current_step="Importando a base de datos...",
+                steps_done=step_offset,
                 total_scraped=len(all_results),
             )
 
@@ -189,31 +227,51 @@ class ScrapingService:
                     job_id,
                     status="completed",
                     message="No se encontraron restaurantes.",
+                    steps_done=step_offset + _IMPORT_STEP + _WEBSITE_STEP,
                     finished_at=datetime.now(timezone.utc).isoformat(),
                 )
                 return
 
-            # Necesitamos una sesión de DB nueva (el hilo no puede reutilizar la sesión del request)
             from app.database import SessionLocal
             db = SessionLocal()
             try:
                 records = [r.to_dict() for r in all_results]
                 imported, skipped = self._import_to_db_session(records, source, db)
-                self._update_job(
-                    job_id,
-                    status="completed",
-                    imported=imported,
-                    skipped=skipped,
-                    steps_done=_JOBS[job_id]["steps_total"],
-                    current_step="Completado",
-                    message=(
-                        f"Scraping completado: {len(records)} encontrados, "
-                        f"{imported} importados, {skipped} omitidos (duplicados)"
-                    ),
-                    finished_at=datetime.now(timezone.utc).isoformat(),
-                )
             finally:
                 db.close()
+            step_offset += _IMPORT_STEP
+
+            # ── Scraping de sitios web propios ───────────────────────────────
+            self._update_job(
+                job_id,
+                current_step="Scraping de sitios web propios...",
+                steps_done=step_offset,
+                imported=imported,
+                skipped=skipped,
+            )
+            try:
+                from scraping_don_piotr.website_scraper import run as run_website_scraper
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                run_website_scraper(limit=limit)
+                logger.info("Scraping de sitios web completado")
+            except Exception as e:
+                logger.error(f"Error en website scraper: {e}")
+            step_offset += _WEBSITE_STEP
+
+            self._update_job(
+                job_id,
+                status="completed",
+                imported=imported,
+                skipped=skipped,
+                steps_done=step_offset,
+                current_step="Completado",
+                message=(
+                    f"Scraping completado: {len(records)} encontrados, "
+                    f"{imported} importados, {skipped} omitidos (duplicados)"
+                ),
+                finished_at=datetime.now(timezone.utc).isoformat(),
+            )
 
         except Exception as e:
             logger.error(f"Error fatal en job {job_id}: {e}")

@@ -14,22 +14,22 @@ import { ZONAS_LA_PAZ, ALL_STATUSES, STATUS_LABELS } from '../utils/constants';
 // Modal de confirmación de scraping
 // ---------------------------------------------------------------------------
 function ScrapingConfirmModal({
-  source,
   onConfirm,
   onCancel,
 }: {
-  source: string;
-  onConfirm: () => void;
+  onConfirm: (source: 'all' | 'bolivia' | 'gmaps') => void;
   onCancel: () => void;
 }) {
+  const [selected, setSelected] = useState<'all' | 'bolivia' | 'gmaps'>('all');
+
   const sourceLabel: Record<string, string> = {
-    all: 'Todas las fuentes (Google Maps + Bolivia en tus Manos)',
-    gmaps: 'Google Maps',
+    all: 'Todas las fuentes (Google Maps + Bolivia en tus Manos + TripAdvisor + Sitios web)',
+    gmaps: 'Google Maps + Sitios web propios',
     bolivia: 'Bolivia en tus Manos',
   };
   const estimatedTime: Record<string, string> = {
-    all: '2 a 3 horas',
-    gmaps: '2 a 2.5 horas',
+    all: '5 a 6 horas',
+    gmaps: '3 a 4 horas',
     bolivia: '10 a 15 minutos',
   };
 
@@ -43,19 +43,48 @@ function ScrapingConfirmModal({
           <h3 className="text-lg font-bold text-gray-800">Confirmar Scraping</h3>
         </div>
 
-        <p className="text-gray-600 mb-2">
-          Estas a punto de iniciar el proceso de extraccion de datos.
+        <p className="text-gray-600 mb-4">
+          Selecciona la fuente de datos a extraer e inicia el proceso.
         </p>
 
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2 text-sm">
-          <div>
-            <span className="font-medium text-gray-700">Fuente:</span>{' '}
-            <span className="text-gray-600">{sourceLabel[source] ?? source}</span>
+        {/* Selector de fuente */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Fuente de datos
+          </label>
+          <div className="space-y-2">
+            {(['all', 'gmaps', 'bolivia'] as const).map((src) => (
+              <label
+                key={src}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selected === src
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="source"
+                  value={src}
+                  checked={selected === src}
+                  onChange={() => setSelected(src)}
+                  className="mt-0.5 accent-green-600"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {src === 'all' ? 'Todas las fuentes' : src === 'gmaps' ? 'Google Maps' : 'Bolivia en tus Manos'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{sourceLabel[src]}</p>
+                </div>
+              </label>
+            ))}
           </div>
-          <div>
-            <span className="font-medium text-gray-700">Tiempo estimado:</span>{' '}
-            <span className="text-orange-600 font-medium">{estimatedTime[source] ?? 'variable'}</span>
-          </div>
+        </div>
+
+        {/* Tiempo estimado */}
+        <div className="bg-gray-50 rounded-lg px-4 py-3 mb-4 flex items-center justify-between text-sm">
+          <span className="text-gray-600">Tiempo estimado:</span>
+          <span className="text-orange-600 font-semibold">{estimatedTime[selected]}</span>
         </div>
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-5 text-sm text-yellow-800">
@@ -71,7 +100,7 @@ function ScrapingConfirmModal({
             Cancelar
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(selected)}
             className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
           >
             Iniciar Scraping
@@ -213,7 +242,7 @@ export default function RestaurantsPage() {
         status: 'running',
         source: scrapingSource,
         steps_done: 0,
-        steps_total: scrapingSource === 'bolivia' ? 6 : scrapingSource === 'gmaps' ? 13 : 18,
+        steps_total: scrapingSource === 'bolivia' ? 7 : scrapingSource === 'gmaps' ? 14 : 20,
         current_step: 'Iniciando...',
         total_scraped: 0,
         imported: 0,
@@ -225,7 +254,8 @@ export default function RestaurantsPage() {
     },
   });
 
-  const handleConfirm = () => {
+  const handleConfirm = (source: 'all' | 'bolivia' | 'gmaps') => {
+    setScrapingSource(source);
     setShowConfirm(false);
     startMutation.mutate();
   };
@@ -258,7 +288,6 @@ export default function RestaurantsPage() {
       {/* Modal de confirmación */}
       {showConfirm && (
         <ScrapingConfirmModal
-          source={scrapingSource}
           onConfirm={handleConfirm}
           onCancel={() => setShowConfirm(false)}
         />
@@ -268,25 +297,13 @@ export default function RestaurantsPage() {
         <h2 className="text-2xl font-bold text-gray-800">Restaurantes</h2>
         <div className="flex items-center gap-3">
           {hasRole('admin') && (
-            <>
-              <select
-                value={scrapingSource}
-                onChange={(e) => setScrapingSource(e.target.value as 'all' | 'bolivia' | 'gmaps')}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-                disabled={isScrapingRunning}
-              >
-                <option value="all">Todas las fuentes</option>
-                <option value="bolivia">Bolivia en tus Manos</option>
-                <option value="gmaps">Google Maps</option>
-              </select>
-              <button
-                onClick={() => setShowConfirm(true)}
-                disabled={isScrapingRunning}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                {isScrapingRunning ? 'Scraping en curso...' : 'Ejecutar Scraping'}
-              </button>
-            </>
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={isScrapingRunning}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {isScrapingRunning ? 'Scraping en curso...' : 'Ejecutar Scraping'}
+            </button>
           )}
           <ExportMenu filters={exportFilters} />
         </div>

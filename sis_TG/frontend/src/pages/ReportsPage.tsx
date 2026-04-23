@@ -65,7 +65,7 @@ export default function ReportsPage() {
     return FUNNEL_ORDER.map((status, idx) => {
       const count = statusData.find(d => d.label === status)?.value || 0;
       const prevCount = idx > 0
-        ? (statusData.find(d => d.label === FUNNEL_ORDER[idx - 1])?.value || 1)
+        ? (statusData.find(d => d.label === FUNNEL_ORDER[idx - 1])?.value ?? 0)
         : count;
       return {
         status,

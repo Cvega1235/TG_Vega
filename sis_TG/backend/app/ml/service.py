@@ -74,6 +74,7 @@ class MLService:
                 "tipo_cocina": r.tipo_cocina,
                 "zona": r.zona,
                 "descripcion": r.descripcion,
+                "tiene_embutidos": r.tiene_embutidos,
             })
         restaurants_df = pd.DataFrame(restaurant_records)
 
@@ -99,10 +100,15 @@ class MLService:
                     "precio": r.precio,
                     "latitud": float(r.latitud) if r.latitud is not None else None,
                     "longitud": float(r.longitud) if r.longitud is not None else None,
+                    "tiene_embutidos": r.tiene_embutidos,
                 } for r in db_clients])
             elif ml_config.ICP_DATA_PATH.exists():
                 logger.warning("Sin clientes en BD, usando CSV de fallback")
                 clients_df = pd.read_csv(ml_config.ICP_DATA_PATH)
+                # El CSV de fallback puede no tener tiene_embutidos;
+                # los clientes actuales de Don Piotr se asume que usan el producto
+                if "tiene_embutidos" not in clients_df.columns:
+                    clients_df["tiene_embutidos"] = True
             else:
                 raise ValueError(
                     "No hay clientes en la base de datos ni archivo CSV de respaldo. "

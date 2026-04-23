@@ -112,6 +112,10 @@ class FeatureEngineer:
         df["has_description"] = df.get(
             "descripcion", pd.Series(dtype="object")
         ).notna().astype(int) if "descripcion" in df.columns else 0
+        # 1 si el restaurante usa productos embutidos (detectado por OCR o web),
+        # 0 si no usa o si aún no fue analizado (None se trata como 0)
+        if "tiene_embutidos" in df.columns:
+            df["tiene_embutidos"] = df["tiene_embutidos"].fillna(False).astype(int)
 
         return df
 

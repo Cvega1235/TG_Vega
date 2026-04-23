@@ -50,6 +50,16 @@ class DashboardService:
         )
         source_counts = {row[0]: row[1] for row in source_rows}
 
+        with_coordinates = self.db.query(func.count(Restaurant.id)).filter(
+            Restaurant.latitud.isnot(None),
+            Restaurant.longitud.isnot(None),
+        ).scalar() or 0
+
+        with_phone = self.db.query(func.count(Restaurant.id)).filter(
+            Restaurant.telefono.isnot(None),
+            Restaurant.telefono != "",
+        ).scalar() or 0
+
         return {
             "total_restaurants": total,
             "avg_rating": round(float(avg_rating), 2) if avg_rating else None,
@@ -57,6 +67,8 @@ class DashboardService:
             "clients_count": clients_count,
             "with_embutidos_count": with_embutidos,
             "to_contact_count": to_contact,
+            "total_with_coordinates": with_coordinates,
+            "total_with_phone": with_phone,
             "status_counts": status_counts,
             "source_counts": source_counts,
         }

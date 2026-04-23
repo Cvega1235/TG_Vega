@@ -72,10 +72,59 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
   );
 }
 
+function MLConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold flex-shrink-0">
+            ?
+          </div>
+          <h3 className="text-lg font-bold text-gray-800">Confirmar Analisis ML</h3>
+        </div>
+
+        <p className="text-gray-600 mb-4">
+          Estas a punto de ejecutar el pipeline de Machine Learning sobre todos los restaurantes.
+        </p>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+          <p className="font-medium">Esta operacion realizara lo siguiente:</p>
+          <ul className="list-disc list-inside space-y-1 text-blue-700">
+            <li>Recalcular los clusters de segmentacion (K-Means)</li>
+            <li>Recalcular el Perfil de Cliente Ideal (ICP)</li>
+            <li>Recalcular el score de afinidad de todos los restaurantes</li>
+            <li>Sobreescribir los puntajes ML anteriores</li>
+          </ul>
+        </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-5 text-sm text-yellow-800">
+          El analisis puede tardar varios minutos dependiendo del numero de restaurantes en la base de datos.
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Ejecutar Analisis
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MLAnalysisPage() {
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [prospectLimit, setProspectLimit] = useState(20);
+  const [showMLConfirm, setShowMLConfirm] = useState(false);
 
   const { data: latestRun } = useQuery({ queryKey: ['ml-latest-run'], queryFn: getLatestRun });
   const { data: clusters, isLoading: loadingClusters } = useQuery({ queryKey: ['ml-clusters'], queryFn: getClusterProfiles });
@@ -97,6 +146,14 @@ export default function MLAnalysisPage() {
 
   return (
     <div className="space-y-6">
+      {/* Modal de confirmacion ML */}
+      {showMLConfirm && (
+        <MLConfirmModal
+          onConfirm={() => { setShowMLConfirm(false); runPipeline.mutate(); }}
+          onCancel={() => setShowMLConfirm(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -107,7 +164,7 @@ export default function MLAnalysisPage() {
         </div>
         {hasRole('admin') && (
           <button
-            onClick={() => runPipeline.mutate()}
+            onClick={() => setShowMLConfirm(true)}
             disabled={runPipeline.isPending}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
           >

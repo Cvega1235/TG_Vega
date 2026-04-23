@@ -8,6 +8,8 @@ class DashboardStats(BaseModel):
     clients_count: int
     with_embutidos_count: int
     to_contact_count: int
+    total_with_coordinates: int
+    total_with_phone: int
     status_counts: dict[str, int]
     source_counts: dict[str, int]
 

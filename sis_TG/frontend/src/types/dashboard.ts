@@ -5,6 +5,8 @@ export interface DashboardStats {
   clients_count: number;
   with_embutidos_count: number;
   to_contact_count: number;
+  total_with_coordinates: number;
+  total_with_phone: number;
   status_counts: Record<string, number>;
   source_counts: Record<string, number>;
 }
