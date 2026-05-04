@@ -24,7 +24,7 @@ export default function ChartByZone({ data }: Props) {
           <XAxis dataKey="label" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" height={60} />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="value" fill="#9B1C2E" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

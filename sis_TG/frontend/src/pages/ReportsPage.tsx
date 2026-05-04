@@ -13,7 +13,7 @@ import {
 import ExportMenu from '../components/common/ExportMenu';
 import type { MapDataPoint } from '../types/dashboard';
 
-const COLORS = ['#2563eb', '#16a34a', '#eab308', '#ef4444', '#8b5cf6',
+const COLORS = ['#9B1C2E', '#16a34a', '#eab308', '#ef4444', '#8b5cf6',
   '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#6366f1'];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -129,7 +129,7 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-primary-50 rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-600">Total Restaurantes</p>
-            <p className="text-2xl font-bold mt-1 text-primary-600">{stats?.total_restaurants || 0}</p>
+            <p className="text-2xl font-bold mt-1 text-primary-500">{stats?.total_restaurants || 0}</p>
           </div>
           <div className="bg-yellow-50 rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-600">Rating Promedio</p>
@@ -159,7 +159,7 @@ export default function ReportsPage() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" fill="#9B1C2E" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -245,7 +245,7 @@ export default function ReportsPage() {
             <div className="space-y-3">
               {funnelData.map((stage, idx) => {
                 const widthPct = maxFunnelCount > 0 ? (stage.count / maxFunnelCount) * 100 : 0;
-                const colors = ['#3b82f6', '#8b5cf6', '#eab308', '#22c55e'];
+                const colors = ['#9B1C2E', '#7F1D1D', '#C94B6A', '#6B1414'];
                 return (
                   <div key={stage.status}>
                     <div className="flex items-center justify-between text-sm mb-1">
@@ -339,7 +339,7 @@ export default function ReportsPage() {
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" fill="#9B1C2E" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

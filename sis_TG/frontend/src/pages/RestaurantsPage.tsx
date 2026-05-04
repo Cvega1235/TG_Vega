@@ -7,6 +7,7 @@ import type { ScrapingJob } from '../api/scraping';
 import { useMutation } from '@tanstack/react-query';
 import type { RestaurantFilters } from '../types/restaurant';
 import ExportMenu from '../components/common/ExportMenu';
+import Portal from '../components/common/Portal';
 import { useAuth } from '../auth/AuthContext';
 import { ZONAS_LA_PAZ, ALL_STATUSES, STATUS_LABELS } from '../utils/constants';
 
@@ -34,6 +35,7 @@ function ScrapingConfirmModal({
   };
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center gap-3 mb-4">
@@ -108,6 +110,7 @@ function ScrapingConfirmModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 

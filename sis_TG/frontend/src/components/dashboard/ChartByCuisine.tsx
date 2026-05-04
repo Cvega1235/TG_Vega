@@ -24,7 +24,7 @@ export default function ChartByCuisine({ data }: Props) {
           <XAxis type="number" />
           <YAxis dataKey="label" type="category" tick={{ fontSize: 11 }} width={100} />
           <Tooltip />
-          <Bar dataKey="value" fill="#7c3aed" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value" fill="#7F1D1D" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

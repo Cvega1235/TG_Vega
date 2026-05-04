@@ -5,7 +5,7 @@ interface Props {
   data: ChartDataPoint[] | undefined;
 }
 
-const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#2563eb'];
+const COLORS = ['#4A0B0B', '#7F1D1D', '#9B1C2E', '#C94B6A', '#FF8FA3'];
 
 export default function ChartByRating({ data }: Props) {
   if (!data || data.length === 0) {

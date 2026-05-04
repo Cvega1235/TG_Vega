@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { getLatestRun, getClusterProfiles, getTopProspects, runMLPipeline } from '../api/ml';
 import { useAuth } from '../auth/AuthContext';
+import Portal from '../components/common/Portal';
 
 const CLUSTER_NAMES: Record<number, { label: string; desc: string; color: string }> = {
   0: {
@@ -74,6 +75,7 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
 
 function MLConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center gap-3 mb-4">
@@ -117,6 +119,7 @@ function MLConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCanc
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
