@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, createUser, updateUser, deleteUser } from '../api/users';
+import { unlockUser } from '../api/security';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS, ROLE_LEVELS } from '../utils/constants';
 import type { UserData, UserCreate } from '../types/user';
@@ -26,6 +27,11 @@ export default function UsersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+
+  const unlockMutation = useMutation({
+    mutationFn: unlockUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
@@ -73,31 +79,48 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                    }`}>
-                      {u.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium w-fit ${
+                        u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                      }`}>
+                        {u.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                      {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 w-fit">
+                          🔒 Bloqueado
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-gray-500 text-xs">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
-                  <td className="py-3 px-4 flex gap-2">
-                    <button
-                      onClick={() => { setEditingUser(u); setShowForm(true); }}
-                      className="text-primary-500 hover:underline text-xs"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Desactivar a ${u.full_name}?`))
-                          deleteMutation.mutate(u.id);
-                      }}
-                      className="text-red-500 hover:underline text-xs"
-                    >
-                      Desactivar
-                    </button>
+                  <td className="py-3 px-4">
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => { setEditingUser(u); setShowForm(true); }}
+                        className="text-primary-500 hover:underline text-xs"
+                      >
+                        Editar
+                      </button>
+                      {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
+                        <button
+                          onClick={() => unlockMutation.mutate(u.id)}
+                          className="text-orange-600 hover:underline text-xs font-medium"
+                        >
+                          Desbloquear
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (confirm(`Desactivar a ${u.full_name}?`))
+                            deleteMutation.mutate(u.id);
+                        }}
+                        className="text-red-500 hover:underline text-xs"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

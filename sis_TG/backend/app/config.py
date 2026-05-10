@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     # OTP
     OTP_EXPIRE_MINUTES: int = 5
 
+    # Seguridad — cifrado de campos sensibles
+    # Generar con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    ENCRYPTION_KEY: str = ""
+
+    # Bloqueo de cuenta por intentos fallidos
+    MAX_LOGIN_ATTEMPTS: int = 5
+    LOCKOUT_MINUTES: int = 30
+
+    # Timeout de inactividad (enviado al frontend como referencia)
+    INACTIVITY_TIMEOUT_MINUTES: int = 30
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

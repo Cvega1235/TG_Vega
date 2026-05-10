@@ -247,7 +247,7 @@ class FeatureEngineer:
             "data_quality",
         ]
         feature_cols = [c for c in df.columns if c not in non_feature_cols]
-        df = df[feature_cols]
+        df = df[feature_cols].copy()
 
         # Estandarizar solo numéricos continuos (no binarios one-hot)
         numeric_to_scale = [
@@ -256,7 +256,7 @@ class FeatureEngineer:
 
         if numeric_to_scale:
             self.scaler = StandardScaler()
-            df[numeric_to_scale] = self.scaler.fit_transform(
+            df.loc[:, numeric_to_scale] = self.scaler.fit_transform(
                 df[numeric_to_scale]
             )
 
@@ -270,14 +270,14 @@ class FeatureEngineer:
             "data_quality",
         ]
         feature_cols = [c for c in df.columns if c not in non_feature_cols]
-        df = df[feature_cols]
+        df = df[feature_cols].copy()
 
         numeric_to_scale = [
             c for c in ml_config.NUMERIC_FEATURES if c in df.columns
         ]
 
         if self.scaler and numeric_to_scale:
-            df[numeric_to_scale] = self.scaler.transform(
+            df.loc[:, numeric_to_scale] = self.scaler.transform(
                 df[numeric_to_scale]
             )
 

@@ -37,10 +37,6 @@ def main():
     pipeline = MLPipeline(df_restaurants, df_clients, output_dir=output_dir)
     results = pipeline.run()
 
-    # Exportar resultados
-    export_path = str(OUTPUT_DIR / "ml_results")
-    pipeline.export_results(export_path)
-
     # Resumen
     ranked = results["ranked_restaurants"]
     print("\n" + "=" * 60)

@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import type { User, OTPResponse } from '../types/auth';
 import { login as apiLogin, verifyOTP as apiVerifyOTP, getMe } from '../api/auth';
+
+const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutos
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +23,35 @@ const ROLE_LEVELS: Record<string, number> = {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const logout = useCallback(() => {
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    setUser(null);
+  }, []);
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      logout();
+    }, INACTIVITY_MS);
+  }, [logout]);
+
+  // Start/stop inactivity timer based on authentication state
+  useEffect(() => {
+    if (!user) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [user, resetTimer]);
 
   useEffect(() => {
     const token = sessionStorage.getItem('access_token');
@@ -48,12 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.setItem('refresh_token', tokens.refresh_token);
     const me = await getMe();
     setUser(me);
-  };
-
-  const logout = () => {
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-    setUser(null);
   };
 
   const hasRole = (minRole: string): boolean => {

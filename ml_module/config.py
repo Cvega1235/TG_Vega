@@ -4,7 +4,11 @@ Configuración del módulo de Machine Learning.
 Sistema de Inteligencia de Mercado Don Piotr
 """
 
+import os
 from pathlib import Path
+
+# Silencia el warning de joblib sobre detección de núcleos físicos en Windows
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 4))
 
 # ============================================================================
 # RUTAS
