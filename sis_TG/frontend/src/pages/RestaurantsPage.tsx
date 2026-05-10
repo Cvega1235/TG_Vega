@@ -296,14 +296,14 @@ export default function RestaurantsPage() {
         />
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Restaurantes</h2>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Restaurantes</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {hasRole('admin') && (
             <button
               onClick={() => setShowConfirm(true)}
               disabled={isScrapingRunning}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-center"
             >
               {isScrapingRunning ? 'Scraping en curso...' : 'Ejecutar Scraping'}
             </button>
@@ -372,14 +372,14 @@ export default function RestaurantsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Nombre</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Zona</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Fuente</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Rating</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Resenas</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Estado</th>
-                    <th className="text-right py-3 px-4 text-gray-500 font-medium">Score</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Acciones</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Nombre</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden sm:table-cell">Zona</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden md:table-cell">Fuente</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden md:table-cell">Rating</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden lg:table-cell">Reseñas</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Estado</th>
+                    <th className="text-right py-3 px-3 sm:px-4 text-gray-500 font-medium hidden sm:table-cell">Score</th>
+                    <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Ver</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,39 +389,37 @@ export default function RestaurantsPage() {
                       className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer"
                       onClick={() => navigate(`/restaurants/${r.id}`)}
                     >
-                      <td className="py-3 px-4 font-medium text-gray-800">{r.nombre}</td>
-                      <td className="py-3 px-4 text-gray-600">{r.zona || '-'}</td>
-                      <td className="py-3 px-4 text-gray-600">{r.fuente}</td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-2.5 px-3 sm:px-4 font-medium text-gray-800">
+                        <span className="block max-w-[140px] sm:max-w-xs truncate">{r.nombre}</span>
+                        <span className="text-xs text-gray-400 sm:hidden">{r.zona || ''}</span>
+                      </td>
+                      <td className="py-2.5 px-3 sm:px-4 text-gray-600 hidden sm:table-cell">{r.zona || '-'}</td>
+                      <td className="py-2.5 px-3 sm:px-4 text-gray-600 hidden md:table-cell">{r.fuente}</td>
+                      <td className="py-2.5 px-3 sm:px-4 text-gray-600 hidden md:table-cell">
                         {r.rating ? `${r.rating}/5` : '-'}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{r.num_resenas || 0}</td>
-                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-2.5 px-3 sm:px-4 text-gray-600 hidden lg:table-cell">{r.num_resenas || 0}</td>
+                      <td className="py-2.5 px-3 sm:px-4" onClick={(e) => e.stopPropagation()}>
                         <select
                           value={r.status}
-                          onChange={(e) =>
-                            statusMutation.mutate({ id: r.id, status: e.target.value })
-                          }
-                          className="text-xs border border-gray-200 rounded px-2 py-1"
+                          onChange={(e) => statusMutation.mutate({ id: r.id, status: e.target.value })}
+                          className="text-xs border border-gray-200 rounded px-1.5 py-1 max-w-[90px] sm:max-w-none"
                         >
                           {ALL_STATUSES.map((s) => (
                             <option key={s} value={s}>{STATUS_LABELS[s]}</option>
                           ))}
                         </select>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 sm:px-4 text-right hidden sm:table-cell">
                         {r.score ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-700">
                             {r.score.total_score.toFixed(1)}
                           </span>
                         ) : '-'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3 sm:px-4">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/restaurants/${r.id}`);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/restaurants/${r.id}`); }}
                           className="text-primary-500 hover:underline text-xs"
                         >
                           Ver

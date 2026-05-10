@@ -54,10 +54,10 @@ export default function RestaurantDetailPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="bg-white rounded-xl p-6 shadow-sm">
-        <div className="flex items-start justify-between">
+      <div className="bg-white rounded-xl p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">{restaurant.nombre}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{restaurant.nombre}</h2>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 {restaurant.fuente}
@@ -69,7 +69,7 @@ export default function RestaurantDetailPage() {
             <select
               value={restaurant.status}
               onChange={(e) => statusMutation.mutate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
             >
               {ALL_STATUSES.map((s) => (
                 <option key={s} value={s}>{STATUS_LABELS[s]}</option>
@@ -202,8 +202,8 @@ export default function RestaurantDetailPage() {
         <div className="space-y-2">
           {history?.length ? (
             history.map((change) => (
-              <div key={change.id} className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400 text-xs w-36">
+              <div key={change.id} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-gray-400 text-xs">
                   {new Date(change.changed_at).toLocaleString()}
                 </span>
                 {change.old_status && (

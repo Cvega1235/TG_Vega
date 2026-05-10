@@ -276,43 +276,42 @@ export default function SecurityPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">Fecha / Hora</th>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">Acción</th>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">Usuario</th>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">IP</th>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">Estado</th>
-                  <th className="text-left py-3 px-4 text-gray-500 font-medium">Detalles</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Fecha / Hora</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Acción</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden sm:table-cell">Usuario</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden lg:table-cell">IP</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Estado</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden md:table-cell">Detalles</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {logs?.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-400">
-                      Sin registros
-                    </td>
+                    <td colSpan={6} className="py-8 text-center text-gray-400">Sin registros</td>
                   </tr>
                 )}
                 {logs?.map((log: AuditLog) => (
                   <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-500 text-xs whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
-                    <td className="py-2.5 px-4 font-medium text-gray-800 text-xs whitespace-nowrap">
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-800 text-xs whitespace-nowrap font-medium">
                       {ACTION_LABELS[log.action] || log.action}
+                      <span className="block text-gray-400 sm:hidden">{log.user_email || ''}</span>
                     </td>
-                    <td className="py-2.5 px-4 text-gray-600 text-xs">
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-600 text-xs hidden sm:table-cell">
                       {log.user_email || <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="py-2.5 px-4 text-gray-500 text-xs font-mono">
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-500 text-xs font-mono hidden lg:table-cell">
                       {log.ip_address || '—'}
                     </td>
-                    <td className="py-2.5 px-4">
+                    <td className="py-2.5 px-3 sm:px-4">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[log.status]}`}>
                         {log.status === 'success' ? 'Exitoso' :
                          log.status === 'failure' ? 'Fallido' : 'Advertencia'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-4 text-gray-500 text-xs max-w-xs truncate">
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-500 text-xs max-w-xs truncate hidden md:table-cell">
                       {log.details || '—'}
                     </td>
                   </tr>

@@ -42,11 +42,11 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Gestion de Usuarios</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Gestion de Usuarios</h2>
         <button
           onClick={() => { setEditingUser(null); setShowForm(true); }}
-          className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600"
+          className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600"
         >
           Nuevo Usuario
         </button>
@@ -57,75 +57,80 @@ export default function UsersPage() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Cargando...</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Nombre</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Email</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Rol</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Estado</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Creado</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users?.map((u) => (
-                <tr key={u.id} className="border-t border-gray-100">
-                  <td className="py-3 px-4 font-medium text-gray-800">{u.full_name}</td>
-                  <td className="py-3 px-4 text-gray-600">{u.email}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
-                      {ROLE_LABELS[u.role] || u.role}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex flex-col gap-1">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium w-fit ${
-                        u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                      }`}>
-                        {u.is_active ? 'Activo' : 'Inactivo'}
-                      </span>
-                      {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 w-fit">
-                          🔒 Bloqueado
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-500 text-xs">
-                    {new Date(u.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => { setEditingUser(u); setShowForm(true); }}
-                        className="text-primary-500 hover:underline text-xs"
-                      >
-                        Editar
-                      </button>
-                      {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
-                        <button
-                          onClick={() => unlockMutation.mutate(u.id)}
-                          className="text-orange-600 hover:underline text-xs font-medium"
-                        >
-                          Desbloquear
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          if (confirm(`Desactivar a ${u.full_name}?`))
-                            deleteMutation.mutate(u.id);
-                        }}
-                        className="text-red-500 hover:underline text-xs"
-                      >
-                        Desactivar
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Nombre</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden sm:table-cell">Email</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden md:table-cell">Rol</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Estado</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium hidden lg:table-cell">Creado</th>
+                  <th className="text-left py-3 px-3 sm:px-4 text-gray-500 font-medium">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users?.map((u) => (
+                  <tr key={u.id} className="border-t border-gray-100">
+                    <td className="py-2.5 px-3 sm:px-4 font-medium text-gray-800">
+                      <span className="block">{u.full_name}</span>
+                      <span className="text-xs text-gray-400 sm:hidden">{u.email}</span>
+                    </td>
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-600 hidden sm:table-cell">{u.email}</td>
+                    <td className="py-2.5 px-3 sm:px-4 hidden md:table-cell">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
+                        {ROLE_LABELS[u.role] || u.role}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 sm:px-4">
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium w-fit ${
+                          u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {u.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                        {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 w-fit">
+                            🔒 Bloqueado
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 sm:px-4 text-gray-500 text-xs hidden lg:table-cell">
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-2.5 px-3 sm:px-4">
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => { setEditingUser(u); setShowForm(true); }}
+                          className="text-primary-500 hover:underline text-xs"
+                        >
+                          Editar
+                        </button>
+                        {(u as any).locked_until && new Date((u as any).locked_until) > new Date() && (
+                          <button
+                            onClick={() => unlockMutation.mutate(u.id)}
+                            className="text-orange-600 hover:underline text-xs font-medium"
+                          >
+                            Desbloquear
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (confirm(`Desactivar a ${u.full_name}?`))
+                              deleteMutation.mutate(u.id);
+                          }}
+                          className="text-red-500 hover:underline text-xs"
+                        >
+                          Desactivar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

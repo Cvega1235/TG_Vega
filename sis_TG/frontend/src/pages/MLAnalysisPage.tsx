@@ -26,10 +26,10 @@ function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
   const color = value >= 70 ? '#4CAF50' : value >= 50 ? '#FF9800' : '#F44336';
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 bg-gray-200 rounded-full h-3">
-        <div className="h-3 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+      <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+        <div className="h-2.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
-      <span className="text-xs font-bold w-8 text-right" style={{ color }}>{value.toFixed(0)}</span>
+      <span className="text-xs font-bold w-7 text-right shrink-0" style={{ color }}>{value.toFixed(0)}</span>
     </div>
   );
 }
@@ -38,24 +38,20 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
   clusterId: number; size: number; avgRating: number | null;
   dominantZone: string | null; dominantCuisine: string | null;
 }) {
-  const info = CLUSTER_NAMES[clusterId] ?? {
-    label: `Segmento ${clusterId}`,
-    desc: '',
-    color: '#9E9E9E',
-  };
+  const info = CLUSTER_NAMES[clusterId] ?? { label: `Segmento ${clusterId}`, desc: '', color: '#9E9E9E' };
   return (
-    <div className="bg-white rounded-xl shadow p-5 border-t-4" style={{ borderColor: info.color }}>
+    <div className="bg-white rounded-xl shadow p-4 sm:p-5 border-t-4" style={{ borderColor: info.color }}>
       <div className="flex items-start justify-between mb-3">
-        <div>
+        <div className="min-w-0 mr-2">
           <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: info.color }}>
             Segmento {clusterId}
           </span>
-          <h3 className="text-lg font-bold text-gray-800 mt-0.5">{info.label}</h3>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 mt-0.5 leading-tight">{info.label}</h3>
         </div>
-        <span className="text-3xl font-black" style={{ color: info.color }}>{size}</span>
+        <span className="text-2xl sm:text-3xl font-black shrink-0" style={{ color: info.color }}>{size}</span>
       </div>
       <p className="text-sm text-gray-500 mb-4">{info.desc}</p>
-      <div className="grid grid-cols-3 gap-3 text-center text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 text-center text-sm">
         <div className="bg-gray-50 rounded-lg p-2">
           <p className="text-gray-400 text-xs">Rating prom.</p>
           <p className="font-bold text-gray-700">{avgRating?.toFixed(1) ?? '—'}</p>
@@ -64,7 +60,7 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
           <p className="text-gray-400 text-xs">Zona principal</p>
           <p className="font-bold text-gray-700 truncate">{dominantZone ?? '—'}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-2">
+        <div className="bg-gray-50 rounded-lg p-2 col-span-2 sm:col-span-1">
           <p className="text-gray-400 text-xs">Cocina principal</p>
           <p className="font-bold text-gray-700 truncate">{dominantCuisine ?? '—'}</p>
         </div>
@@ -76,49 +72,45 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
 function MLConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <Portal>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold flex-shrink-0">
-            ?
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 w-full max-w-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold shrink-0">
+              ?
+            </div>
+            <h3 className="text-lg font-bold text-gray-800">Confirmar Analisis ML</h3>
           </div>
-          <h3 className="text-lg font-bold text-gray-800">Confirmar Analisis ML</h3>
-        </div>
-
-        <p className="text-gray-600 mb-4">
-          Estas a punto de ejecutar el pipeline de Machine Learning sobre todos los restaurantes.
-        </p>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
-          <p className="font-medium">Esta operacion realizara lo siguiente:</p>
-          <ul className="list-disc list-inside space-y-1 text-blue-700">
-            <li>Recalcular los clusters de segmentacion (K-Means)</li>
-            <li>Recalcular el Perfil de Cliente Ideal (ICP)</li>
-            <li>Recalcular el score de afinidad de todos los restaurantes</li>
-            <li>Sobreescribir los puntajes ML anteriores</li>
-          </ul>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-5 text-sm text-yellow-800">
-          El analisis puede tardar varios minutos dependiendo del numero de restaurantes en la base de datos.
-        </div>
-
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            Ejecutar Analisis
-          </button>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base">
+            Estas a punto de ejecutar el pipeline de Machine Learning sobre todos los restaurantes.
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+            <p className="font-medium">Esta operacion realizara lo siguiente:</p>
+            <ul className="list-disc list-inside space-y-1 text-blue-700">
+              <li>Recalcular los clusters de segmentacion (K-Means)</li>
+              <li>Recalcular el Perfil de Cliente Ideal (ICP)</li>
+              <li>Recalcular el score de afinidad de todos los restaurantes</li>
+              <li>Sobreescribir los puntajes ML anteriores</li>
+            </ul>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-5 text-sm text-yellow-800">
+            El analisis puede tardar varios minutos dependiendo del numero de restaurantes en la base de datos.
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Ejecutar Analisis
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </Portal>
   );
 }
@@ -148,8 +140,7 @@ export default function MLAnalysisPage() {
   const isLoading = loadingClusters || loadingProspects;
 
   return (
-    <div className="space-y-6">
-      {/* Modal de confirmacion ML */}
+    <div className="space-y-5 sm:space-y-6">
       {showMLConfirm && (
         <MLConfirmModal
           onConfirm={() => { setShowMLConfirm(false); runPipeline.mutate(); }}
@@ -158,10 +149,10 @@ export default function MLAnalysisPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analisis de Prospectos</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Analisis de Prospectos</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
             Clasificacion automatica de clientes potenciales para Don Piotr
           </p>
         </div>
@@ -169,9 +160,9 @@ export default function MLAnalysisPage() {
           <button
             onClick={() => setShowMLConfirm(true)}
             disabled={runPipeline.isPending}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             {runPipeline.isPending ? 'Analizando...' : 'Actualizar Analisis'}
@@ -181,32 +172,32 @@ export default function MLAnalysisPage() {
 
       {runPipeline.isSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800 font-medium">{runPipeline.data.message}</p>
+          <p className="text-green-800 font-medium text-sm sm:text-base">{runPipeline.data.message}</p>
         </div>
       )}
       {runPipeline.isError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">Error al actualizar el analisis.</p>
+          <p className="text-red-800 text-sm">Error al actualizar el analisis.</p>
         </div>
       )}
 
       {!latestRun && !isLoading && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800 text-lg font-medium">Analisis no ejecutado aun</p>
-          <p className="text-yellow-600 mt-1">Presiona "Actualizar Analisis" para clasificar los prospectos.</p>
+          <p className="text-yellow-800 text-base font-medium">Analisis no ejecutado aun</p>
+          <p className="text-yellow-600 mt-1 text-sm">Presiona "Actualizar Analisis" para clasificar los prospectos.</p>
         </div>
       )}
 
       {/* Resumen del modelo */}
       {latestRun && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <p className="font-semibold text-blue-800">Como funciona el analisis</p>
-              <p className="text-sm text-blue-700 mt-1">
+              <p className="font-semibold text-blue-800 text-sm sm:text-base">Como funciona el analisis</p>
+              <p className="text-xs sm:text-sm text-blue-700 mt-1">
                 El sistema analizo <strong>{latestRun.total_restaurants_scored} restaurantes</strong> de La Paz
                 y los clasifico en <strong>{latestRun.optimal_k} segmentos</strong> segun sus caracteristicas
                 (zona, tipo de cocina, rating, reseñas). Luego comparo cada restaurante con el perfil de los{' '}
@@ -224,8 +215,8 @@ export default function MLAnalysisPage() {
       {/* Tarjetas de segmentos */}
       {clusters && clusters.length > 0 && (
         <>
-          <h2 className="text-lg font-semibold text-gray-800">Segmentos de Mercado Identificados</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800">Segmentos de Mercado Identificados</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {clusters.map((c) => (
               <ClusterCard
                 key={c.cluster_id}
@@ -242,10 +233,10 @@ export default function MLAnalysisPage() {
 
       {/* Graficos */}
       {clusters && clusters.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow p-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white rounded-xl shadow p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Distribucion de Restaurantes por Segmento</h3>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={clusters.map(c => ({
@@ -256,32 +247,35 @@ export default function MLAnalysisPage() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={95}
-                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                  outerRadius={85}
+                  label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 >
                   {clusters.map((c) => (
                     <Cell key={c.cluster_id} fill={CLUSTER_NAMES[c.cluster_id]?.color ?? '#9E9E9E'} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value, name) => [value, name]} />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-white rounded-xl shadow p-5">
+          <div className="bg-white rounded-xl shadow p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Score de Afinidad Promedio por Segmento</h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={clusters.map(c => ({
-                name: CLUSTER_NAMES[c.cluster_id]?.label ?? `Segmento ${c.cluster_id}`,
-                score: c.avg_composite_score ? Math.round(c.avg_composite_score) : 0,
-                rating: c.avg_rating ?? 0,
-              }))}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart
+                data={clusters.map(c => ({
+                  name: CLUSTER_NAMES[c.cluster_id]?.label ?? `Segmento ${c.cluster_id}`,
+                  score: c.avg_composite_score ? Math.round(c.avg_composite_score) : 0,
+                  rating: c.avg_rating ?? 0,
+                }))}
+                margin={{ left: -10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
                 <Bar dataKey="score" fill="#2196F3" name="Score Afinidad" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="rating" fill="#4CAF50" name="Rating Prom." radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -293,7 +287,7 @@ export default function MLAnalysisPage() {
       {/* Top prospectos */}
       {prospects && prospects.length > 0 && (
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-4 border-b flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-gray-800">Mejores Prospectos</h2>
               <p className="text-xs text-gray-400 mt-0.5">Restaurantes con mayor afinidad al perfil de cliente Don Piotr</p>
@@ -301,7 +295,7 @@ export default function MLAnalysisPage() {
             <select
               value={prospectLimit}
               onChange={e => setProspectLimit(Number(e.target.value))}
-              className="border rounded px-3 py-1 text-sm"
+              className="border rounded px-3 py-1.5 text-sm w-full sm:w-auto"
             >
               <option value={10}>Top 10</option>
               <option value={20}>Top 20</option>
@@ -312,21 +306,24 @@ export default function MLAnalysisPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Restaurante</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Zona</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">Rating</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Cocina</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500 w-40">Score de Afinidad</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-medium text-gray-500 w-8">#</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-medium text-gray-500">Restaurante</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-medium text-gray-500 hidden sm:table-cell">Zona</th>
+                  <th className="px-3 sm:px-4 py-3 text-right font-medium text-gray-500 hidden md:table-cell">Rating</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-medium text-gray-500 hidden lg:table-cell">Cocina</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-medium text-gray-500 w-32 sm:w-40">Score</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {prospects.map((p, i) => (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400 font-mono">{i + 1}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{p.nombre}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.zona ?? '—'}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-medium text-gray-800">
+                      <span className="block max-w-[160px] sm:max-w-xs truncate">{p.nombre}</span>
+                      <span className="text-xs text-gray-400 sm:hidden">{p.zona ?? ''}</span>
+                    </td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-500 hidden sm:table-cell">{p.zona ?? '—'}</td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-right hidden md:table-cell">
                       {p.rating ? (
                         <span className="flex items-center justify-end gap-1">
                           <svg className="w-3 h-3 text-yellow-400 fill-yellow-400" viewBox="0 0 24 24">
@@ -336,8 +333,10 @@ export default function MLAnalysisPage() {
                         </span>
                       ) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 max-w-[140px] truncate">{p.tipo_cocina ?? '—'}</td>
-                    <td className="px-4 py-3 w-40">
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-500 hidden lg:table-cell">
+                      <span className="block max-w-[140px] truncate">{p.tipo_cocina ?? '—'}</span>
+                    </td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 w-32 sm:w-40">
                       <ScoreBar value={p.composite_score ?? 0} />
                     </td>
                   </tr>
