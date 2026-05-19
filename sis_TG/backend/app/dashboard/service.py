@@ -152,6 +152,43 @@ class DashboardService:
             for row in rows
         ]
 
+    def get_top_prospects(self, limit: int = 3) -> list[dict]:
+        rows = (
+            self.db.query(
+                Restaurant.id, Restaurant.nombre, Restaurant.zona,
+                Restaurant.tipo_cocina, Restaurant.rating, Restaurant.status,
+                Restaurant.telefono, Restaurant.tiene_embutidos,
+                RestaurantScore.total_score,
+                RestaurantScore.cuisine_score,
+                RestaurantScore.rating_score,
+                RestaurantScore.reviews_score,
+                RestaurantScore.zone_score,
+            )
+            .join(RestaurantScore)
+            .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+            .order_by(RestaurantScore.total_score.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": row[0],
+                "nombre": row[1],
+                "zona": row[2],
+                "tipo_cocina": row[3],
+                "rating": float(row[4]) if row[4] else None,
+                "status": row[5],
+                "telefono": row[6],
+                "tiene_embutidos": row[7],
+                "total_score": float(row[8]),
+                "cuisine_score": float(row[9]) if row[9] else None,
+                "rating_score": float(row[10]) if row[10] else None,
+                "reviews_score": float(row[11]) if row[11] else None,
+                "zone_score": float(row[12]) if row[12] else None,
+            }
+            for row in rows
+        ]
+
     def get_top_scores(self, limit: int = 15) -> list[dict]:
         rows = (
             self.db.query(

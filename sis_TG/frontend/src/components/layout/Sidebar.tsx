@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import logo from '../../assets/logo.svg';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -29,20 +30,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       style={{ background: 'linear-gradient(180deg, #4A0B0B 0%, #6B1414 50%, #7F1D1D 100%)' }}
     >
       {/* Logo */}
-      <div className="p-6 border-b border-primary-700 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary-400 flex items-center justify-center text-white font-bold text-lg shadow-md">
-            D
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white leading-tight">Don Piotr</h1>
-            <p className="text-xs text-primary-200 mt-0.5">Inteligencia de Mercado</p>
-          </div>
-        </div>
+      <div className="p-6 border-b border-primary-700 flex items-center justify-center relative">
+        <img src={logo} alt="Don Piotr" className="h-14 w-auto object-contain" />
         {/* Botón cerrar solo en móvil */}
         <button
           onClick={onClose}
-          className="md:hidden text-primary-200 hover:text-white p-1"
+          className="md:hidden text-primary-200 hover:text-white p-1 absolute right-4"
           aria-label="Cerrar menú"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

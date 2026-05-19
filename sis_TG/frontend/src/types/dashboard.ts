@@ -37,3 +37,19 @@ export interface TopScoredItem {
   tipo_cocina: string | null;
   tiene_embutidos: boolean | null;
 }
+
+export interface TopProspect {
+  id: number;
+  nombre: string;
+  zona: string | null;
+  tipo_cocina: string | null;
+  rating: number | null;
+  status: string;
+  telefono: string | null;
+  tiene_embutidos: boolean | null;
+  total_score: number;
+  cuisine_score: number | null;
+  rating_score: number | null;
+  reviews_score: number | null;
+  zone_score: number | null;
+}

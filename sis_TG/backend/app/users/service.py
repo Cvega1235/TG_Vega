@@ -57,7 +57,8 @@ class UserService:
         if user is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-        if user.role_level >= current_user.role_level:
+        is_superadmin = current_user.role == "superadmin"
+        if not is_superadmin and user.role_level >= current_user.role_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No puedes editar un usuario con rol igual o superior al tuyo",
@@ -65,7 +66,7 @@ class UserService:
 
         if data.role is not None:
             target_level = ROLE_LEVELS.get(data.role, 0)
-            if target_level >= current_user.role_level:
+            if not is_superadmin and target_level >= current_user.role_level:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="No puedes asignar un rol igual o superior al tuyo",

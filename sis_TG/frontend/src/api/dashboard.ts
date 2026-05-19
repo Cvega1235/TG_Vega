@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem } from '../types/dashboard';
+import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspect } from '../types/dashboard';
 
 export async function getStats(): Promise<DashboardStats> {
   const res = await apiClient.get<DashboardStats>('/dashboard/stats');
@@ -33,5 +33,10 @@ export async function getMapData(): Promise<MapDataPoint[]> {
 
 export async function getTopScores(limit = 15): Promise<TopScoredItem[]> {
   const res = await apiClient.get<TopScoredItem[]>('/dashboard/top-scores', { params: { limit } });
+  return res.data;
+}
+
+export async function getTopProspects(limit = 3): Promise<TopProspect[]> {
+  const res = await apiClient.get<TopProspect[]>('/dashboard/top-prospects', { params: { limit } });
   return res.data;
 }

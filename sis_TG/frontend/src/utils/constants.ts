@@ -6,10 +6,10 @@ export const ROLE_LEVELS: Record<string, number> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
-  superadmin: 'Super Admin',
-  admin: 'Administrador',
-  analista: 'Analista',
-  viewer: 'Viewer',
+  superadmin: 'Gerente',
+  admin: 'Gerente',
+  analista: 'Vendedor',
+  viewer: 'Visitante',
 };
 
 export const STATUS_LABELS: Record<string, string> = {

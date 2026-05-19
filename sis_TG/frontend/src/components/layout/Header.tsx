@@ -1,5 +1,6 @@
 import { useAuth } from '../../auth/AuthContext';
 import { ROLE_LABELS } from '../../utils/constants';
+import logo from '../../assets/logo.svg';
 
 interface HeaderProps {
   onMenuToggle: () => void;

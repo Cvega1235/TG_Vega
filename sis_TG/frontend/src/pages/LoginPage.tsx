@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import logo from '../assets/logo.svg';
 
 export default function LoginPage() {
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
@@ -107,11 +108,8 @@ export default function LoginPage() {
           <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
             style={{ background: 'linear-gradient(90deg, #9B1C2E, #C94B6A)' }} />
 
-          <div className="text-center mb-8 mt-2">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold shadow-lg animate-fade-in"
-              style={{ background: 'linear-gradient(135deg, #7F1D1D, #C94B6A)' }}>
-              D
-            </div>
+          <div className="text-center mb-5">
+            <img src={logo} alt="Don Piotr" className="w-28 h-28 object-contain mx-auto mb-2 animate-fade-in" />
             <h1 className="text-2xl font-bold text-gray-800">Don Piotr</h1>
             <p className="text-gray-400 text-sm mt-1">Sistema de Inteligencia de Mercado</p>
           </div>

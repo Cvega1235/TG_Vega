@@ -41,3 +41,21 @@ class TopScoredItem(BaseModel):
     tiene_embutidos: bool | None = None
 
     model_config = {"from_attributes": True}
+
+
+class TopProspectItem(BaseModel):
+    id: int
+    nombre: str
+    zona: str | None = None
+    tipo_cocina: str | None = None
+    rating: float | None = None
+    status: str
+    telefono: str | None = None
+    tiene_embutidos: bool | None = None
+    total_score: float
+    cuisine_score: float | None = None
+    rating_score: float | None = None
+    reviews_score: float | None = None
+    zone_score: float | None = None
+
+    model_config = {"from_attributes": True}

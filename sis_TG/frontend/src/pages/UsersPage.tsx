@@ -35,9 +35,26 @@ export default function UsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
+  const [updateError, setUpdateError] = useState('');
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Omit<UserCreate, 'password'> }) =>
+      updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setShowForm(false);
+      setUpdateError('');
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail || 'Error al guardar los cambios';
+      setUpdateError(msg);
+    },
+  });
+
   const currentLevel = ROLE_LEVELS[currentUser?.role || ''] || 0;
+  const isSuperadmin = currentUser?.role === 'superadmin';
   const availableRoles = Object.entries(ROLE_LEVELS)
-    .filter(([, level]) => level < currentLevel)
+    .filter(([, level]) => isSuperadmin ? level <= currentLevel : level < currentLevel)
     .map(([role]) => role);
 
   return (
@@ -139,14 +156,14 @@ export default function UsersPage() {
         <UserFormModal
           user={editingUser}
           availableRoles={availableRoles}
-          onClose={() => setShowForm(false)}
+          error={updateError}
+          isLoading={updateMutation.isPending || createMutation.isPending}
+          onClose={() => { setShowForm(false); setUpdateError(''); }}
           onSubmit={(data) => {
+            setUpdateError('');
             if (editingUser) {
               const { password, ...rest } = data;
-              updateUser(editingUser.id, rest).then(() => {
-                queryClient.invalidateQueries({ queryKey: ['users'] });
-                setShowForm(false);
-              });
+              updateMutation.mutate({ id: editingUser.id, data: rest });
             } else {
               createMutation.mutate(data);
             }
@@ -168,11 +185,15 @@ const ALL_PAGES = [
 function UserFormModal({
   user,
   availableRoles,
+  error,
+  isLoading,
   onClose,
   onSubmit,
 }: {
   user: UserData | null;
   availableRoles: string[];
+  error?: string;
+  isLoading?: boolean;
   onClose: () => void;
   onSubmit: (data: UserCreate) => void;
 }) {
@@ -207,6 +228,11 @@ function UserFormModal({
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           {user ? 'Editar Usuario' : 'Nuevo Usuario'}
         </h3>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm mb-4">
+            {error}
+          </div>
+        )}
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
@@ -301,9 +327,10 @@ function UserFormModal({
           </button>
           <button
             onClick={() => onSubmit(form)}
-            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            disabled={isLoading}
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
           >
-            {user ? 'Guardar' : 'Crear'}
+            {isLoading ? 'Guardando...' : (user ? 'Guardar' : 'Crear')}
           </button>
         </div>
       </div>

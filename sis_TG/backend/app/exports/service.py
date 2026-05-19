@@ -1,10 +1,9 @@
 import csv
 import io
-from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, Reference
@@ -16,8 +15,6 @@ from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable,
 )
 from reportlab.graphics.shapes import Drawing, Rect, String
-from reportlab.graphics.charts.barcharts import VerticalBarChart
-from reportlab.graphics import renderPDF
 
 from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore
 
@@ -273,68 +270,242 @@ def export_excel(db: Session, **filters) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# PDF con graficos y top 50
+# PDF — colores del sistema
 # ---------------------------------------------------------------------------
 
+PRIMARY_HEX = colors.HexColor("#9B1C2E")
+PRIMARY_LIGHT_HEX = colors.HexColor("#FEE2E2")
+PRIMARY_DARK_HEX = colors.HexColor("#7F1D1D")
+GREEN_HEX = colors.HexColor("#16A34A")
+GREEN_LIGHT_HEX = colors.HexColor("#DCFCE7")
+YELLOW_HEX = colors.HexColor("#EAB308")
+GRAY_HEX = colors.HexColor("#6B7280")
+GRAY_LIGHT_HEX = colors.HexColor("#F9FAFB")
+BORDER_HEX = colors.HexColor("#E5E7EB")
+TEXT_DARK = colors.HexColor("#111827")
+TEXT_MID = colors.HexColor("#374151")
+
+# Backwards compat para Excel (no cambia)
 BLUE_HEX = colors.HexColor("#2563EB")
 LIGHT_BLUE_HEX = colors.HexColor("#DBEAFE")
-GREEN_HEX = colors.HexColor("#16A34A")
 ORANGE_HEX = colors.HexColor("#EA580C")
 
 
-def _kpi_table(kpis: list[tuple]) -> Table:
-    """Crea una tabla de KPIs con estilo de tarjetas."""
-    data = [[Paragraph(f"<b>{v}</b>", ParagraphStyle("kv", fontSize=18, textColor=colors.white)),
-             Paragraph(f"<font size=9>{l}</font>", ParagraphStyle("kl", fontSize=9, textColor=colors.white))]
-            for l, v in kpis]
+# ---------------------------------------------------------------------------
+# Helpers PDF
+# ---------------------------------------------------------------------------
 
-    bg_colors = [BLUE_HEX, GREEN_HEX, colors.HexColor("#7C3AED"), ORANGE_HEX, colors.HexColor("#CA8A04")]
-    style = [
-        ("BACKGROUND", (0, i), (-1, i), bg_colors[i % len(bg_colors)])
-        for i in range(len(data))
+def _get_top_prospects_pdf(db: Session, limit: int = 3) -> list[dict]:
+    rows = (
+        db.query(
+            Restaurant.nombre, Restaurant.zona, Restaurant.tipo_cocina,
+            Restaurant.rating, Restaurant.status, Restaurant.tiene_embutidos,
+            RestaurantScore.total_score,
+            RestaurantScore.cuisine_score,
+            RestaurantScore.rating_score,
+            RestaurantScore.reviews_score,
+            RestaurantScore.zone_score,
+        )
+        .join(RestaurantScore)
+        .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+        .order_by(RestaurantScore.total_score.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "nombre": r[0], "zona": r[1], "tipo_cocina": r[2],
+            "rating": float(r[3]) if r[3] else None,
+            "status": r[4], "tiene_embutidos": r[5],
+            "total_score": float(r[6]),
+            "cuisine_score": float(r[7]) if r[7] else None,
+            "rating_score": float(r[8]) if r[8] else None,
+            "reviews_score": float(r[9]) if r[9] else None,
+            "zone_score": float(r[10]) if r[10] else None,
+        }
+        for r in rows
     ]
+
+
+def _get_reasons(prospect: dict) -> list[str]:
+    reasons = []
+    if (prospect.get("cuisine_score") or 0) >= 20:
+        reasons.append("Alta afinidad de productos con el catalogo Don Piotr")
+    if (prospect.get("rating_score") or 0) >= 15:
+        reasons.append("Rating excepcional entre los restaurantes del mercado")
+    if (prospect.get("reviews_score") or 0) >= 10:
+        reasons.append("Alto volumen de resenas — establecimiento consolidado")
+    if (prospect.get("zone_score") or 0) >= 10:
+        reasons.append("Ubicado en zona de alto potencial comercial")
+    if prospect.get("tiene_embutidos"):
+        reasons.append("Menu con productos afines a embutidos detectado")
+    if not reasons:
+        reasons.append("Score compuesto elevado segun analisis ML del sistema")
+    return reasons[:3]
+
+
+def _prospect_card(prospect: dict, rank: int) -> Table:
+    RANK_LABELS = ["1 RECOMENDADO", "2 RECOMENDADO", "3 RECOMENDADO"]
+    RANK_BG = [colors.HexColor("#FEF3C7"), GRAY_LIGHT_HEX, colors.HexColor("#FEF9C3")]
+    RANK_ACCENT = [colors.HexColor("#B45309"), GRAY_HEX, colors.HexColor("#92400E")]
+
+    reasons = _get_reasons(prospect)
+    score = prospect.get("total_score", 0)
+    card_inner_w = 7.2 * cm
+
+    # Score bar
+    score_bar_w = card_inner_w - 0.5 * cm
+    bar_draw = Drawing(score_bar_w, 14)
+    pct = min(score / 100, 1.0)
+    bar_draw.add(Rect(0, 4, score_bar_w, 7, rx=3, ry=3,
+                      fillColor=BORDER_HEX, strokeColor=None))
+    if pct > 0:
+        bar_draw.add(Rect(0, 4, score_bar_w * pct, 7, rx=3, ry=3,
+                          fillColor=PRIMARY_HEX, strokeColor=None))
+
+    name_style = ParagraphStyle("cn", fontSize=10, fontName="Helvetica-Bold",
+                                textColor=TEXT_DARK, spaceAfter=1)
+    meta_style = ParagraphStyle("cm", fontSize=7.5, textColor=GRAY_HEX, spaceAfter=2)
+    score_style = ParagraphStyle("cs", fontSize=22, fontName="Helvetica-Bold",
+                                 textColor=PRIMARY_HEX, alignment=1)
+    score_sub = ParagraphStyle("css", fontSize=7, textColor=GRAY_HEX, alignment=1)
+    reason_style = ParagraphStyle("cr", fontSize=7.5, textColor=TEXT_MID, spaceAfter=1)
+    rh_style = ParagraphStyle("crh", fontSize=7.5, fontName="Helvetica-Bold",
+                               textColor=GRAY_HEX, spaceAfter=3)
+
+    zona = prospect.get("zona") or "Sin zona"
+    cocina = prospect.get("tipo_cocina") or "Sin clasificar"
+    rating_txt = f"Rating: {prospect['rating']:.1f} / 5" if prospect.get("rating") else "Sin rating"
+
+    card_data = [
+        [Paragraph(f"<b>N{rank + 1}  {RANK_LABELS[rank]}</b>",
+                   ParagraphStyle("rk", fontSize=8, fontName="Helvetica-Bold",
+                                  textColor=RANK_ACCENT[rank], alignment=1))],
+        [Paragraph(prospect.get("nombre", ""), name_style)],
+        [Paragraph(f"{zona}  /  {cocina}", meta_style)],
+        [Paragraph(f"{score:.0f} / 100", score_style)],
+        [Paragraph("Score de cliente potencial", score_sub)],
+        [bar_draw],
+        [Spacer(1, 3)],
+        [Paragraph(rating_txt, ParagraphStyle("rt", fontSize=8, textColor=YELLOW_HEX))],
+        [Spacer(1, 4)],
+        [Paragraph("Por que el sistema lo recomienda:", rh_style)],
+        *[[Paragraph(f">  {r}", reason_style)] for r in reasons],
+    ]
+
+    t = Table(card_data, colWidths=[card_inner_w])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), RANK_BG[rank]),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+        ("BOX", (0, 0), (-1, -1), 1.5, BORDER_HEX),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, RANK_ACCENT[rank]),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("ALIGN", (0, 3), (-1, 3), "CENTER"),
+        ("ALIGN", (0, 4), (-1, 4), "CENTER"),
+        ("ALIGN", (0, 5), (-1, 5), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return t
+
+
+def _rounded_bar_chart(
+    data: list[tuple], title: str,
+    width: float = 13 * cm, height: float = 7 * cm,
+    bar_color=None,
+) -> Drawing:
+    from reportlab.graphics.shapes import Line as GLine
+    drawing = Drawing(width, height)
+    if not data:
+        return drawing
+
+    color = bar_color or PRIMARY_HEX
+    values = [v for _, v in data]
+    labels = [l[:13] for l, _ in data]
+    max_val = max(values) * 1.18 if values else 1
+
+    ml, mb, mt, mr = 28, 42, 22, 8
+    chart_w = width - ml - mr
+    chart_h = height - mb - mt
+    n = len(values)
+    slot = chart_w / n
+    bar_w = slot * 0.62
+    gap = (slot - bar_w) / 2
+
+    # Grid lines
+    for tick in [0.25, 0.5, 0.75, 1.0]:
+        y_g = mb + tick * chart_h
+        drawing.add(GLine(ml, y_g, width - mr, y_g,
+                          strokeColor=colors.HexColor("#F3F4F6"), strokeWidth=0.5))
+
+    for i, (val, label) in enumerate(zip(values, labels)):
+        x = ml + i * slot + gap
+        bh = max((val / max_val) * chart_h, 3)
+
+        # Shadow bar (offset 1pt right, lighter)
+        drawing.add(Rect(x + 1, mb, bar_w, bh, rx=4, ry=4,
+                         fillColor=colors.HexColor("#E5E7EB"), strokeColor=None))
+        # Main bar
+        drawing.add(Rect(x, mb, bar_w, bh, rx=4, ry=4,
+                         fillColor=color, strokeColor=None))
+        # Value label
+        drawing.add(String(x + bar_w / 2, mb + bh + 2, str(val),
+                           fontSize=6.5, textAnchor="middle",
+                           fillColor=TEXT_MID))
+        # Category label
+        drawing.add(String(x + bar_w / 2, mb - 14, label,
+                           fontSize=6, textAnchor="middle",
+                           fillColor=GRAY_HEX))
+
+    # X axis
+    drawing.add(GLine(ml, mb, width - mr, mb,
+                      strokeColor=colors.HexColor("#D1D5DB"), strokeWidth=0.8))
+    # Title
+    drawing.add(String(width / 2, height - 13, title,
+                       fontSize=9, fontName="Helvetica-Bold", textAnchor="middle",
+                       fillColor=TEXT_DARK))
+    return drawing
+
+
+def _section_header(text: str) -> Paragraph:
+    style = ParagraphStyle(
+        "sh", fontSize=12, fontName="Helvetica-Bold",
+        textColor=PRIMARY_HEX, spaceBefore=4, spaceAfter=6,
+        borderPad=0,
+    )
+    return Paragraph(text, style)
+
+
+def _kpi_table(kpis: list[tuple]) -> Table:
+    bg_colors = [PRIMARY_HEX, GREEN_HEX, colors.HexColor("#7C3AED"), ORANGE_HEX, colors.HexColor("#CA8A04")]
+    data = [
+        [
+            Paragraph(f"<b>{v}</b>",
+                      ParagraphStyle("kv", fontSize=18, textColor=colors.white, alignment=1)),
+            Paragraph(f"<font size=9>{l}</font>",
+                      ParagraphStyle("kl", fontSize=9, textColor=colors.white)),
+        ]
+        for l, v in kpis
+    ]
+    style = [("BACKGROUND", (0, i), (-1, i), bg_colors[i % len(bg_colors)]) for i in range(len(data))]
     style += [
         ("BOX", (0, 0), (-1, -1), 0.5, colors.white),
-        ("ROWBACKGROUNDS", (0, 0), (-1, -1), bg_colors[:len(data)]),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 8),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("LEFTPADDING", (0, 0), (-1, -1), 12),
     ]
-    t = Table(data, colWidths=[3 * cm, 9 * cm], repeatRows=0)
+    t = Table(data, colWidths=[3 * cm, 9 * cm])
     t.setStyle(TableStyle(style))
     return t
-
-
-def _bar_chart_drawing(data: list[tuple], title: str, width: float = 16 * cm, height: float = 7 * cm) -> Drawing:
-    """Crea un grafico de barras vertical con reportlab."""
-    drawing = Drawing(width, height)
-    chart = VerticalBarChart()
-    chart.x = 40
-    chart.y = 30
-    chart.width = width - 60
-    chart.height = height - 45
-
-    values = [v for _, v in data]
-    labels = [l[:14] for l, _ in data]
-
-    chart.data = [values]
-    chart.categoryAxis.categoryNames = labels
-    chart.categoryAxis.labels.angle = 25
-    chart.categoryAxis.labels.fontSize = 7
-    chart.valueAxis.valueMin = 0
-    chart.valueAxis.valueMax = max(values) * 1.15 if values else 10
-    chart.bars[0].fillColor = BLUE_HEX
-
-    title_str = String(width / 2, height - 12, title, fontSize=10, fontName="Helvetica-Bold", textAnchor="middle")
-    drawing.add(chart)
-    drawing.add(title_str)
-    return drawing
 
 
 def export_pdf(db: Session, **filters) -> bytes:
     rows = _get_top_scored(db, limit=50, **filters)
     stats = _get_summary_stats(db)
+    prospects = _get_top_prospects_pdf(db, limit=3)
 
     output = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -342,23 +513,54 @@ def export_pdf(db: Session, **filters) -> bytes:
         leftMargin=1.5 * cm, rightMargin=1.5 * cm,
         topMargin=1.5 * cm, bottomMargin=1.5 * cm,
     )
-    styles = getSampleStyleSheet()
     elements = []
 
-    # Titulo
-    title_style = ParagraphStyle("title", fontSize=16, fontName="Helvetica-Bold",
-                                 textColor=BLUE_HEX, spaceAfter=4)
-    subtitle_style = ParagraphStyle("sub", fontSize=9, textColor=colors.grey, spaceAfter=10)
+    title_style = ParagraphStyle("title", fontSize=17, fontName="Helvetica-Bold",
+                                 textColor=PRIMARY_HEX, spaceAfter=3)
+    subtitle_style = ParagraphStyle("sub", fontSize=9, textColor=GRAY_HEX, spaceAfter=8)
+
+    # === ENCABEZADO ===
     elements.append(Paragraph("Reporte de Inteligencia de Mercado", title_style))
     elements.append(Paragraph(
-        f"Fabrica Don Piotr  |  Generado el {datetime.now().strftime('%d de %B de %Y')}",
+        f"Fabrica Don Piotr  —  Generado el {datetime.now().strftime('%d de %B de %Y')}",
         subtitle_style,
     ))
-    elements.append(HRFlowable(width="100%", thickness=2, color=BLUE_HEX, spaceAfter=12))
+    elements.append(HRFlowable(width="100%", thickness=2, color=PRIMARY_HEX, spaceAfter=14))
 
-    # KPIs
-    elements.append(Paragraph("<b>Indicadores Clave</b>", styles["Heading2"]))
+    # === SECCIÓN 1: RECOMENDACIONES DEL SISTEMA ===
+    elements.append(_section_header("Recomendaciones del Sistema  —  Analisis ML"))
+    elements.append(Paragraph(
+        "Los 3 restaurantes con mayor potencial de conversion segun el modelo de inteligencia "
+        "de mercado, excluyendo clientes actuales y prospectos descartados.",
+        subtitle_style,
+    ))
     elements.append(Spacer(1, 6))
+
+    if prospects:
+        cards = [_prospect_card(p, i) for i, p in enumerate(prospects)]
+        while len(cards) < 3:
+            cards.append(Spacer(1, 1))
+        card_col_w = 7.8 * cm
+        cards_table = Table(
+            [cards],
+            colWidths=[card_col_w] * 3,
+            hAlign="LEFT",
+        )
+        cards_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(cards_table)
+
+    elements.append(Spacer(1, 14))
+    elements.append(HRFlowable(width="100%", thickness=0.5, color=BORDER_HEX, spaceAfter=12))
+
+    # === SECCIÓN 2: INDICADORES CLAVE ===
+    elements.append(_section_header("Indicadores Clave del Mercado"))
+    elements.append(Spacer(1, 4))
     kpis = [
         ("Total Restaurantes", stats["total"]),
         ("Alta Afinidad (Score >= 70)", stats["high_affinity"]),
@@ -369,68 +571,73 @@ def export_pdf(db: Session, **filters) -> bytes:
     elements.append(_kpi_table(kpis))
     elements.append(Spacer(1, 16))
 
-    # Graficos lado a lado
+    # === SECCIÓN 3: GRAFICOS DE DISTRIBUCIÓN ===
     if stats["by_zone"]:
-        elements.append(Paragraph("<b>Distribucion por Zona y Tipo de Cocina</b>", styles["Heading2"]))
-        elements.append(Spacer(1, 6))
+        elements.append(_section_header("Distribucion por Zona y Tipo de Cocina"))
+        elements.append(Spacer(1, 4))
         chart_w = 13 * cm
         chart_h = 7 * cm
-        zone_chart = _bar_chart_drawing(stats["by_zone"], "Restaurantes por Zona", chart_w, chart_h)
-        cuisine_chart = _bar_chart_drawing(stats["by_cuisine"], "Tipos de Cocina mas Frecuentes", chart_w, chart_h)
-        charts_table = Table([[zone_chart, cuisine_chart]], colWidths=[chart_w + 1 * cm, chart_w + 1 * cm])
+        zone_chart = _rounded_bar_chart(stats["by_zone"], "Restaurantes por Zona",
+                                        chart_w, chart_h, PRIMARY_HEX)
+        cuisine_chart = _rounded_bar_chart(stats["by_cuisine"], "Tipos de Cocina mas Frecuentes",
+                                           chart_w, chart_h, GREEN_HEX)
+        charts_table = Table(
+            [[zone_chart, cuisine_chart]],
+            colWidths=[chart_w + 1 * cm, chart_w + 1 * cm],
+        )
         elements.append(charts_table)
         elements.append(Spacer(1, 16))
 
-    # Tabla de estado
+    # === SECCIÓN 4: EMBUDO DE VENTAS ===
     if stats["by_status"]:
+        elements.append(_section_header("Estado Comercial de Prospectos"))
+        elements.append(Spacer(1, 4))
         status_labels = {
             "nuevo": "Nuevo", "contactado": "Contactado", "interesado": "Interesado",
             "cliente": "Cliente", "no_interesado": "No Interesado",
         }
-        elements.append(Paragraph("<b>Estado Comercial de Prospectos</b>", styles["Heading2"]))
-        elements.append(Spacer(1, 6))
         status_data = [["Estado", "Cantidad"]] + [
             [status_labels.get(k, k), v] for k, v in stats["by_status"].items()
         ]
         st = Table(status_data, colWidths=[6 * cm, 4 * cm])
         st.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), BLUE_HEX),
+            ("BACKGROUND", (0, 0), (-1, 0), PRIMARY_HEX),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT_BLUE_HEX, colors.white]),
+            ("GRID", (0, 0), (-1, -1), 0.5, BORDER_HEX),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [PRIMARY_LIGHT_HEX, colors.white]),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ]))
         elements.append(st)
         elements.append(Spacer(1, 20))
 
-    # Top 50 prospectos
-    elements.append(HRFlowable(width="100%", thickness=1, color=colors.lightgrey, spaceAfter=10))
-    elements.append(Paragraph("<b>Top 50 Prospectos Mejor Puntuados</b>", styles["Heading2"]))
-    elements.append(Spacer(1, 6))
+    # === SECCIÓN 5: TOP 50 PROSPECTOS ===
+    elements.append(HRFlowable(width="100%", thickness=1, color=BORDER_HEX, spaceAfter=10))
+    elements.append(_section_header("Top 50 Prospectos Mejor Puntuados"))
+    elements.append(Spacer(1, 4))
 
     pdf_headers = ["#", "Nombre", "Zona", "Cocina", "Rating", "Estado", "Score", "Embutidos"]
     pdf_keys = ["nombre", "zona", "tipo_cocina", "rating", "status", "score", "tiene_embutidos"]
 
     table_data = [pdf_headers]
     for i, row in enumerate(rows, 1):
-        table_data.append(
-            [str(i)] + [str(row.get(k, "-"))[:28] for k in pdf_keys]
-        )
+        table_data.append([str(i)] + [str(row.get(k, "-"))[:28] for k in pdf_keys])
 
-    col_widths = [1*cm, 6.5*cm, 3*cm, 3.5*cm, 1.8*cm, 2.8*cm, 1.8*cm, 2.2*cm]
+    col_widths = [1 * cm, 6.5 * cm, 3 * cm, 3.5 * cm, 1.8 * cm, 2.8 * cm, 1.8 * cm, 2.2 * cm]
     prospect_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     prospect_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), BLUE_HEX),
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY_HEX),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 7.5),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("ALIGN", (1, 1), (1, -1), "LEFT"),
         ("ALIGN", (3, 1), (3, -1), "LEFT"),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT_BLUE_HEX, colors.white]),
+        ("GRID", (0, 0), (-1, -1), 0.4, BORDER_HEX),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [PRIMARY_LIGHT_HEX, colors.white]),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
