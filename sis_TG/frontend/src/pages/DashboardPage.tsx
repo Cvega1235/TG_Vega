@@ -44,7 +44,7 @@ export default function DashboardPage() {
           >
             Todas
           </button>
-          {sources.map((s) => (
+          {sources.filter((s) => s.label !== 'manual').map((s) => (
             <button
               key={s.label}
               onClick={() => setSelectedFuente(s.label === selectedFuente ? null : s.label)}

@@ -18,6 +18,12 @@ from app.migration_tool.migrate_sqlite import (
 
 logger = logging.getLogger("app.scraping.service")
 
+# ---------------------------------------------------------------------------
+# Trabajos de enriquecimiento en memoria
+# ---------------------------------------------------------------------------
+_ENRICH_JOBS: dict[str, dict] = {}
+_ENRICH_LOCK = threading.Lock()
+
 # Agregar el directorio raíz del proyecto al path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -382,6 +388,157 @@ class ScrapingService:
 
         logger.info(f"Importados {imported} restaurantes, {skipped} omitidos")
         return imported, skipped
+
+    # ------------------------------------------------------------------
+    # Enriquecimiento de datos de clientes existentes
+    # ------------------------------------------------------------------
+
+    def start_enrichment(self, headless: bool = True) -> str:
+        """Lanza el enriquecimiento en background y retorna el job_id.
+
+        Busca automáticamente todos los clientes con campos vacíos
+        (teléfono, coordenadas, rating, tipo de cocina, sitio web) y
+        ejecuta una búsqueda dirigida en Google Maps para cada uno.
+        """
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            from sqlalchemy import or_
+            enrichable = (
+                db.query(Restaurant)
+                .filter(
+                    Restaurant.status == "cliente",
+                    or_(
+                        Restaurant.telefono.is_(None),
+                        Restaurant.latitud.is_(None),
+                        Restaurant.rating.is_(None),
+                        Restaurant.tipo_cocina.is_(None),
+                        Restaurant.website_url.is_(None),
+                    ),
+                )
+                .with_entities(Restaurant.id, Restaurant.nombre, Restaurant.direccion)
+                .all()
+            )
+            targets = [{"id": r.id, "nombre": r.nombre, "direccion": r.direccion} for r in enrichable]
+        finally:
+            db.close()
+
+        job_id = str(uuid.uuid4())
+        with _ENRICH_LOCK:
+            _ENRICH_JOBS[job_id] = {
+                "status": "running",
+                "steps_done": 0,
+                "steps_total": len(targets),
+                "current_step": "Iniciando...",
+                "results": [],
+                "message": "",
+                "started_at": datetime.now(timezone.utc).isoformat(),
+                "finished_at": None,
+            }
+
+        thread = threading.Thread(
+            target=self._run_enrichment,
+            args=(job_id, targets, headless),
+            daemon=True,
+        )
+        thread.start()
+        return job_id
+
+    def _run_enrichment(self, job_id: str, targets: list[dict], headless: bool) -> None:
+        """Ejecuta el enriquecimiento en segundo plano."""
+        _scraping_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+        if str(_scraping_root) not in sys.path:
+            sys.path.insert(0, str(_scraping_root))
+
+        results = []
+        scraper = None
+        try:
+            from scraping_don_piotr.gmaps_scraper import GoogleMapsScraper
+            from app.database import SessionLocal
+
+            scraper = GoogleMapsScraper(headless=headless)
+            scraper.setup_driver()
+            for idx, target in enumerate(targets):
+                rid = target["id"]
+                nombre = target["nombre"]
+                direccion = target.get("direccion")
+
+                with _ENRICH_LOCK:
+                    _ENRICH_JOBS[job_id]["current_step"] = f"Buscando: {nombre}"
+                    _ENRICH_JOBS[job_id]["steps_done"] = idx
+
+                try:
+                    found = scraper.search_one(nombre, direccion)
+                except Exception as e:
+                    logger.warning(f"Error buscando '{nombre}': {e}")
+                    found = None
+
+                entry: dict = {"restaurant_id": rid, "restaurant_nombre": nombre, "found": False, "updates": {}}
+                if found:
+                    updates: dict = {}
+                    if found.telefono:
+                        updates["telefono"] = found.telefono
+                    if found.latitud is not None:
+                        updates["latitud"] = found.latitud
+                    if found.longitud is not None:
+                        updates["longitud"] = found.longitud
+                    if found.rating is not None:
+                        updates["rating"] = found.rating
+                    if found.num_resenas is not None:
+                        updates["num_resenas"] = found.num_resenas
+                    if found.tipo_cocina:
+                        updates["tipo_cocina"] = found.tipo_cocina
+                    if found.website_url:
+                        updates["website_url"] = found.website_url
+
+                    if updates:
+                        # Only keep updates for fields currently NULL in DB
+                        db = SessionLocal()
+                        try:
+                            r = db.query(Restaurant).filter(Restaurant.id == rid).first()
+                            if r:
+                                filtered: dict = {}
+                                for field, val in updates.items():
+                                    if getattr(r, field, None) is None:
+                                        filtered[field] = val
+                                updates = filtered
+                        finally:
+                            db.close()
+
+                    if updates:
+                        entry["found"] = True
+                        entry["updates"] = updates
+
+                results.append(entry)
+
+            with _ENRICH_LOCK:
+                _ENRICH_JOBS[job_id].update({
+                    "status": "completed",
+                    "steps_done": len(targets),
+                    "current_step": "Completado",
+                    "results": results,
+                    "message": (
+                        f"{sum(1 for r in results if r['found'])} restaurantes con datos nuevos "
+                        f"de {len(targets)} buscados."
+                    ),
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                })
+
+        except Exception as e:
+            logger.error(f"Error fatal en enriquecimiento {job_id}: {e}")
+            with _ENRICH_LOCK:
+                _ENRICH_JOBS[job_id].update({
+                    "status": "error",
+                    "message": f"Error: {e}",
+                    "results": results,
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                })
+        finally:
+            try:
+                if scraper.driver:
+                    scraper.driver.quit()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Mantener compatibilidad con código antiguo (usado en tests / CLI)

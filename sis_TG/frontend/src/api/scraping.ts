@@ -54,3 +54,58 @@ export async function getScrapingHistory(limit = 30): Promise<ScrapingHistory> {
   const res = await apiClient.get<ScrapingHistory>('/scraping/history', { params: { limit } });
   return res.data;
 }
+
+// ---------------------------------------------------------------------------
+// Enriquecimiento de datos de clientes
+// ---------------------------------------------------------------------------
+
+export interface EnrichResult {
+  restaurant_id: number;
+  restaurant_nombre: string;
+  found: boolean;
+  updates: Partial<{
+    telefono: string;
+    latitud: number;
+    longitud: number;
+    rating: number;
+    num_resenas: number;
+    tipo_cocina: string;
+    website_url: string;
+  }>;
+}
+
+export interface EnrichJob {
+  job_id: string;
+  status: 'running' | 'completed' | 'error';
+  steps_done: number;
+  steps_total: number;
+  current_step: string;
+  results: EnrichResult[];
+  message: string;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface EnrichUpdate {
+  restaurant_id: number;
+  updates: Record<string, unknown>;
+}
+
+export async function startEnrichment(headless = true): Promise<{ job_id: string; message: string }> {
+  const res = await apiClient.post<{ job_id: string; message: string }>(
+    '/scraping/enrich',
+    null,
+    { params: { headless } },
+  );
+  return res.data;
+}
+
+export async function getEnrichStatus(jobId: string): Promise<EnrichJob> {
+  const res = await apiClient.get<EnrichJob>(`/scraping/enrich/status/${jobId}`);
+  return res.data;
+}
+
+export async function applyEnrichment(updates: EnrichUpdate[]): Promise<{ applied: number }> {
+  const res = await apiClient.post<{ applied: number }>('/scraping/enrich/apply', { updates });
+  return res.data;
+}

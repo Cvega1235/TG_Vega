@@ -3,15 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getRestaurants } from '../api/restaurants';
 import ClientImportModal from '../components/clients/ClientImportModal';
+import ClientEnrichModal from '../components/clients/ClientEnrichModal';
 import { useAuth } from '../auth/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ClientsPage() {
   const navigate = useNavigate();
   const { hasRole } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [zona, setZona] = useState('');
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const [showEnrich, setShowEnrich] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['clients', search, zona, page],
@@ -48,16 +52,28 @@ export default function ClientsPage() {
             {total} cliente{total !== 1 ? 's' : ''}
           </span>
           {hasRole('analista') && (
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              Importar lista
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowEnrich(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                Completar datos
+              </button>
+              <button
+                onClick={() => setShowImport(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Importar lista
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -166,6 +182,12 @@ export default function ClientsPage() {
       </div>
 
       {showImport && <ClientImportModal onClose={() => setShowImport(false)} />}
+      {showEnrich && (
+        <ClientEnrichModal
+          onClose={() => setShowEnrich(false)}
+          onApplied={() => queryClient.invalidateQueries({ queryKey: ['clients'] })}
+        />
+      )}
 
       {/* Paginación */}
       {pages > 1 && (

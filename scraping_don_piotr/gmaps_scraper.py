@@ -253,6 +253,65 @@ class GoogleMapsScraper(BaseScraper):
             logger.error(f"Error extrayendo datos de {url}: {e}")
             return None
 
+    def search_one(self, name: str, address: Optional[str] = None) -> Optional[RestaurantData]:
+        """Búsqueda dirigida de un restaurante por nombre en Google Maps.
+
+        Construye una query con el nombre (y dirección opcional), navega a
+        la primera coincidencia y extrae sus datos completos.
+
+        Args:
+            name: Nombre del restaurante a buscar.
+            address: Dirección opcional para afinar la búsqueda.
+
+        Returns:
+            RestaurantData del primer resultado, o None si no se encuentra.
+        """
+        parts = [name.replace(" ", "+")]
+        if address:
+            short = address.split(",")[0].strip().replace(" ", "+")
+            if short:
+                parts.append(short)
+        parts.append("La+Paz+Bolivia")
+        url = config.GMAPS_SEARCH_TEMPLATE.format(query="+".join(parts))
+
+        try:
+            if not self.driver:
+                self.setup_driver()
+
+            self.driver.get(url)
+            wait_random(config.DELAY_GMAPS)
+
+            # Guardar y limpiar dedup para no bloquear búsquedas dirigidas
+            saved_seen = self._seen_names.copy()
+            self._seen_names.clear()
+
+            try:
+                # Google Maps a veces redirige directo al lugar
+                if "/maps/place/" in self.driver.current_url:
+                    result = self.extract_restaurant_data(self.driver.current_url)
+                    self._seen_names = saved_seen
+                    return result
+
+                # Esperar primer link de resultado
+                link_elem = WebDriverWait(self.driver, config.TIMEOUT_SELENIUM).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'a[href*="/maps/place/"]'))
+                )
+                first_url = link_elem.get_attribute("href")
+                if first_url:
+                    result = self.extract_restaurant_data(first_url)
+                    self._seen_names = saved_seen
+                    return result
+
+            except TimeoutException:
+                logger.warning(f"Sin resultados para: {name}")
+            finally:
+                self._seen_names = saved_seen
+
+        except Exception as e:
+            logger.error(f"Error buscando '{name}': {e}")
+
+        return None
+
     def _scroll_results(self) -> None:
         """Hace scroll en el panel de resultados para cargar más restaurantes."""
         try:
