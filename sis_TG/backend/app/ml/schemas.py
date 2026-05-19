@@ -13,6 +13,7 @@ class MLScoreResponse(BaseModel):
     icp_similarity: float
     cluster_score: float
     composite_score: float
+    conversion_probability: float | None = None
     calculated_at: datetime
 
     model_config = {"from_attributes": True}
@@ -53,6 +54,28 @@ class MLRunResultResponse(BaseModel):
     run_metadata: MLRunResponse
     cluster_profiles: list[ClusterProfileResponse]
     message: str
+
+
+class ValidationReport(BaseModel):
+    """Reporte de validación de la última ejecución ML."""
+
+    run_at: datetime
+    total_restaurants_scored: int
+    icp_clients_count: int
+    # Clustering
+    silhouette_score: float
+    davies_bouldin_index: float
+    calinski_harabasz_index: float
+    optimal_k: int
+    # Clasificador supervisado
+    classifier_available: bool
+    cls_precision: float | None = None
+    cls_recall: float | None = None
+    cls_f1: float | None = None
+    cls_auc_roc: float | None = None
+    cls_cv_f1_mean: float | None = None
+    cls_cv_f1_std: float | None = None
+    cls_support_positive: int | None = None
 
 
 class TopProspectResponse(BaseModel):

@@ -115,9 +115,13 @@ class MLService:
                     "Importe los clientes actuales primero."
                 )
 
+        # Identificar posiciones de clientes en el DataFrame para el clasificador
+        client_id_set = {r.id for r in self.db.query(Restaurant).filter(Restaurant.status == "cliente").all()}
+        client_indices = [i for i, r in enumerate(restaurant_records) if r["id"] in client_id_set]
+
         # Ejecutar pipeline (sin IDs en el DataFrame de features)
         restaurants_df_ml = restaurants_df.drop(columns=["id"])
-        pipeline = MLPipeline(restaurants_df_ml, clients_df)
+        pipeline = MLPipeline(restaurants_df_ml, clients_df, client_indices=client_indices)
         results = pipeline.run()
 
         # Guardar scores en la DB
@@ -126,10 +130,12 @@ class MLService:
             labels=results["labels"],
             icp_similarities=results["icp_similarities"],
             composite_scores=results["composite_scores"],
+            conversion_probs=results["conversion_probs"],
             cluster_profiles=results["cluster_profiles"],
         )
 
         # Guardar metadata de la ejecución
+        cm = results.get("classification_metrics") or {}
         run_metadata = MLRunMetadata(
             optimal_k=results["optimal_k"],
             silhouette_score=results["validation_metrics"]["silhouette_score"],
@@ -137,6 +143,13 @@ class MLService:
             calinski_harabasz_index=results["validation_metrics"]["calinski_harabasz_index"],
             total_restaurants_scored=len(restaurants),
             icp_clients_count=len(clients_df),
+            cls_precision=cm.get("precision"),
+            cls_recall=cm.get("recall"),
+            cls_f1=cm.get("f1"),
+            cls_auc_roc=cm.get("auc_roc"),
+            cls_cv_f1_mean=cm.get("cv_f1_mean"),
+            cls_cv_f1_std=cm.get("cv_f1_std"),
+            cls_support_positive=cm.get("support_positive"),
         )
         self.db.add(run_metadata)
         self.db.commit()
@@ -177,12 +190,10 @@ class MLService:
         labels: np.ndarray,
         icp_similarities: np.ndarray,
         composite_scores: np.ndarray,
+        conversion_probs: np.ndarray,
         cluster_profiles: dict,
     ) -> None:
         """Guarda los scores ML en la base de datos."""
-        # Calcular cluster_scores
-        from ml_module.scoring import MLScorer
-
         # Eliminar scores anteriores
         self.db.query(RestaurantMLScore).delete()
 
@@ -196,6 +207,7 @@ class MLService:
                     float(composite_scores[i] - 0.6 * icp_similarities[i]) / 0.4, 2
                 ),
                 composite_score=round(float(composite_scores[i]), 2),
+                conversion_probability=round(float(conversion_probs[i]), 4) if conversion_probs[i] > 0 else None,
             )
             self.db.add(ml_score)
 
@@ -261,6 +273,135 @@ class MLService:
             )
 
         return profiles
+
+    def get_recommendations(self) -> dict:
+        """Genera recomendaciones estratégicas basadas en scores ML y estado actual."""
+        from sqlalchemy import func, case
+
+        # 1. Acciones rápidas: ya en contacto, score alto → más cerca de cerrar
+        acciones_rows = (
+            self.db.query(Restaurant, RestaurantMLScore)
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .filter(Restaurant.status.in_(["contactado", "interesado"]))
+            .order_by(RestaurantMLScore.composite_score.desc())
+            .limit(8)
+            .all()
+        )
+
+        # 2. Top sin contactar: status nuevo con score más alto
+        sin_contactar_rows = (
+            self.db.query(Restaurant, RestaurantMLScore)
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .filter(Restaurant.status == "nuevo")
+            .order_by(RestaurantMLScore.composite_score.desc())
+            .limit(8)
+            .all()
+        )
+
+        def _prospect_dict(restaurant: Restaurant, score: RestaurantMLScore) -> dict:
+            return {
+                "id": restaurant.id,
+                "nombre": restaurant.nombre,
+                "zona": restaurant.zona,
+                "status": restaurant.status,
+                "tipo_cocina": restaurant.tipo_cocina,
+                "rating": float(restaurant.rating) if restaurant.rating else None,
+                "composite_score": float(score.composite_score),
+                "conversion_probability": float(score.conversion_probability) if score.conversion_probability else None,
+            }
+
+        # 3. Zonas con más oportunidad: prospectos de calidad (score ≥ 0.6) por zona
+        zona_rows = (
+            self.db.query(
+                Restaurant.zona,
+                func.count(Restaurant.id).label("total"),
+                func.avg(RestaurantMLScore.composite_score).label("avg_score"),
+            )
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .filter(
+                Restaurant.status.notin_(["cliente", "no_interesado"]),
+                RestaurantMLScore.composite_score >= 0.6,
+                Restaurant.zona.isnot(None),
+            )
+            .group_by(Restaurant.zona)
+            .order_by(func.count(Restaurant.id).desc())
+            .limit(5)
+            .all()
+        )
+
+        # 4. Segmentos más afines: tasa de conversión histórica por tipo de cocina
+        cuisine_rows = (
+            self.db.query(
+                Restaurant.tipo_cocina,
+                func.count(Restaurant.id).label("total"),
+                func.sum(
+                    case((Restaurant.status == "cliente", 1), else_=0)
+                ).label("clientes"),
+            )
+            .filter(Restaurant.tipo_cocina.isnot(None))
+            .group_by(Restaurant.tipo_cocina)
+            .having(func.count(Restaurant.id) >= 3)
+            .all()
+        )
+
+        segmentos = sorted(
+            [
+                {
+                    "tipo_cocina": row.tipo_cocina,
+                    "total": row.total,
+                    "clientes": int(row.clientes or 0),
+                    "conversion_rate": round(int(row.clientes or 0) / row.total, 3),
+                }
+                for row in cuisine_rows
+                if row.total > 0
+            ],
+            key=lambda x: x["conversion_rate"],
+            reverse=True,
+        )[:5]
+
+        return {
+            "acciones_rapidas": [_prospect_dict(r, s) for r, s in acciones_rows],
+            "top_sin_contactar": [_prospect_dict(r, s) for r, s in sin_contactar_rows],
+            "zonas_oportunidad": [
+                {
+                    "zona": row.zona,
+                    "total_prospectos": row.total,
+                    "avg_score": round(float(row.avg_score), 2),
+                }
+                for row in zona_rows
+            ],
+            "segmentos_afines": segmentos,
+        }
+
+    def get_validation_report(self) -> Optional[dict]:
+        """Retorna el reporte de validación de la última ejecución ML."""
+        run = (
+            self.db.query(MLRunMetadata)
+            .order_by(MLRunMetadata.run_at.desc())
+            .first()
+        )
+        if not run:
+            return None
+
+        return {
+            "run_at": run.run_at,
+            "total_restaurants_scored": run.total_restaurants_scored,
+            "icp_clients_count": run.icp_clients_count,
+            # Clustering
+            "silhouette_score": float(run.silhouette_score),
+            "davies_bouldin_index": float(run.davies_bouldin_index),
+            "calinski_harabasz_index": float(run.calinski_harabasz_index),
+            "optimal_k": run.optimal_k,
+            # Clasificador supervisado
+            "classifier_available": run.cls_f1 is not None,
+            "cls_precision": float(run.cls_precision) if run.cls_precision is not None else None,
+            "cls_recall": float(run.cls_recall) if run.cls_recall is not None else None,
+            "cls_f1": float(run.cls_f1) if run.cls_f1 is not None else None,
+            "cls_auc_roc": float(run.cls_auc_roc) if run.cls_auc_roc is not None else None,
+            "cls_cv_f1_mean": float(run.cls_cv_f1_mean) if run.cls_cv_f1_mean is not None else None,
+            "cls_cv_f1_std": float(run.cls_cv_f1_std) if run.cls_cv_f1_std is not None else None,
+            "cls_support_positive": run.cls_support_positive,
+        }
 
     def get_top_prospects(self, limit: int = 20, include_clients: bool = False) -> list[TopProspectResponse]:
         """Obtiene los top prospectos por score compuesto."""

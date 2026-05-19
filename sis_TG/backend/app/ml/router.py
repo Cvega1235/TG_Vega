@@ -13,6 +13,7 @@ from app.ml.schemas import (
     MLRunResponse,
     MLRunResultResponse,
     TopProspectResponse,
+    ValidationReport,
 )
 from app.ml.service import MLService
 from app.users.models import User
@@ -66,3 +67,35 @@ def get_top_prospects(
     """Obtiene los top prospectos por score compuesto ML."""
     service = MLService(db)
     return service.get_top_prospects(limit=limit, include_clients=include_clients)
+
+
+@router.get("/recommendations")
+def get_recommendations(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Recomendaciones estratégicas para la toma de decisiones comerciales.
+
+    Retorna cuatro secciones accionables:
+    - acciones_rapidas: prospectos ya contactados con score alto (más cerca de cerrar)
+    - top_sin_contactar: mejores prospectos aún no trabajados
+    - zonas_oportunidad: zonas con mayor concentración de prospectos de calidad
+    - segmentos_afines: tipos de cocina con mayor tasa de conversión histórica
+    """
+    service = MLService(db)
+    return service.get_recommendations()
+
+
+@router.get("/validation", response_model=ValidationReport | None)
+def get_validation_report(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Reporte de validación de la última ejecución ML.
+
+    Incluye métricas de calidad del clustering (Silhouette, Davies-Bouldin,
+    Calinski-Harabasz) y métricas del clasificador supervisado de conversión
+    (Precision, Recall, F1, AUC-ROC con validación cruzada estratificada).
+    """
+    service = MLService(db)
+    return service.get_validation_report()

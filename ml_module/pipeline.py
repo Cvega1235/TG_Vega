@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from ml_module import config as ml_config
+from ml_module.classifier import ConversionClassifier
 from ml_module.clustering import ClusteringPipeline
 from ml_module.feature_engineering import FeatureEngineer
 from ml_module.icp import ICPCalculator
@@ -46,6 +47,7 @@ class MLPipeline:
         restaurants_df: pd.DataFrame,
         clients_df: pd.DataFrame,
         output_dir: Optional[str] = None,
+        client_indices: Optional[list] = None,
     ) -> None:
         """Inicializa el pipeline.
 
@@ -53,10 +55,14 @@ class MLPipeline:
             restaurants_df: DataFrame con datos de restaurantes potenciales.
             clients_df: DataFrame con datos de los 31 clientes actuales.
             output_dir: Directorio para figuras y resultados.
+            client_indices: Posiciones (0-based) en restaurants_df que
+                corresponden a clientes actuales, usadas para entrenar
+                el clasificador supervisado.
         """
         self.restaurants_df = restaurants_df
         self.clients_df = clients_df
         self.output_dir = output_dir
+        self.client_indices = client_indices or []
         self.results: Optional[Dict[str, Any]] = None
 
     def run(self) -> Dict[str, Any]:
@@ -114,8 +120,31 @@ class MLPipeline:
         )
         composite_scores = scorer.compute_composite_scores()
 
-        # 5. Validación
-        logger.info("PASO 5: Validacion del clustering")
+        # 5. Clasificación supervisada
+        logger.info("PASO 5: Clasificacion supervisada de conversion")
+        conversion_probs = np.zeros(len(X))
+        classification_metrics: Dict[str, Any] = {}
+        feature_importances: list = []
+
+        if len(self.client_indices) >= 2:
+            y = np.zeros(len(X), dtype=int)
+            for idx in self.client_indices:
+                if 0 <= idx < len(y):
+                    y[idx] = 1
+
+            clf = ConversionClassifier()
+            classification_metrics = clf.fit_and_validate(X, y)
+            if classification_metrics:
+                conversion_probs = clf.predict_proba(X)
+                feature_importances = clf.get_feature_importances(feature_names)
+        else:
+            logger.warning(
+                f"Solo {len(self.client_indices)} clientes — "
+                "clasificador supervisado omitido (mínimo 2)"
+            )
+
+        # 6. Validación del clustering
+        logger.info("PASO 6: Validacion del clustering")
         validator = ClusterValidator(X, labels)
         metrics = validator.validate()
         is_valid = validator.is_valid()
@@ -131,6 +160,7 @@ class MLPipeline:
             scorer.compute_cluster_scores(), 2
         )
         ranked_df["composite_score"] = np.round(composite_scores, 2)
+        ranked_df["conversion_probability"] = np.round(conversion_probs, 4)
         ranked_df = ranked_df.sort_values(
             "composite_score", ascending=False
         ).reset_index(drop=True)
@@ -149,6 +179,9 @@ class MLPipeline:
             "labels": labels,
             "composite_scores": composite_scores,
             "icp_similarities": icp_similarities,
+            "conversion_probs": conversion_probs,
+            "classification_metrics": classification_metrics,
+            "feature_importances": feature_importances,
             "cluster_profiles": cluster_profiles,
             "validation_metrics": metrics,
             "is_valid": is_valid,

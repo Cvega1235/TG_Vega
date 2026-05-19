@@ -1,6 +1,37 @@
 import apiClient from './client';
 import type { MLRunInfo, MLRunResult, ClusterProfile, TopProspect } from '../types/ml';
 
+export interface RecommendationProspect {
+  id: number;
+  nombre: string;
+  zona: string | null;
+  status: string;
+  tipo_cocina: string | null;
+  rating: number | null;
+  composite_score: number;
+  conversion_probability: number | null;
+}
+
+export interface ZonaOportunidad {
+  zona: string;
+  total_prospectos: number;
+  avg_score: number;
+}
+
+export interface SegmentoAfin {
+  tipo_cocina: string;
+  total: number;
+  clientes: number;
+  conversion_rate: number;
+}
+
+export interface Recommendations {
+  acciones_rapidas: RecommendationProspect[];
+  top_sin_contactar: RecommendationProspect[];
+  zonas_oportunidad: ZonaOportunidad[];
+  segmentos_afines: SegmentoAfin[];
+}
+
 export async function runMLPipeline(): Promise<MLRunResult> {
   const res = await apiClient.post<MLRunResult>('/ml/run');
   return res.data;
@@ -20,5 +51,10 @@ export async function getTopProspects(limit = 20, includeClients = false): Promi
   const res = await apiClient.get<TopProspect[]>('/ml/top-prospects', {
     params: { limit, include_clients: includeClients },
   });
+  return res.data;
+}
+
+export async function getRecommendations(): Promise<Recommendations> {
+  const res = await apiClient.get<Recommendations>('/ml/recommendations');
   return res.data;
 }

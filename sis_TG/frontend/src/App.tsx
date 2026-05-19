@@ -20,6 +20,7 @@ import ReportsPage from './pages/ReportsPage';
 import ClientsPage from './pages/ClientsPage';
 import SecurityPage from './pages/SecurityPage';
 import ScrapingPage from './pages/ScrapingPage';
+import RecommendationsPage from './pages/RecommendationsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/restaurants" element={<RestaurantsPage />} />
               <Route path="/restaurants/:id" element={<RestaurantDetailPage />} />
               <Route path="/ml-analysis" element={<MLAnalysisPage />} />
+              <Route path="/recommendations" element={<RecommendationsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/clients" element={<ClientsPage />} />
               <Route

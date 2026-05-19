@@ -14,7 +14,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/dashboard',   label: 'Dashboard',    icon: '📊', page: 'dashboard' },
     { to: '/restaurants', label: 'Restaurantes', icon: '🍽️', page: 'restaurants' },
     { to: '/clients',     label: 'Clientes',     icon: '🤝', page: 'clients' },
-    { to: '/ml-analysis', label: 'Analisis ML',  icon: '🧠', page: 'ml-analysis' },
+    { to: '/ml-analysis',     label: 'Analisis ML',      icon: '🧠', page: 'ml-analysis' },
+    { to: '/recommendations', label: 'Recomendaciones', icon: '💡', page: 'recommendations' },
     { to: '/reports',     label: 'Reportes',     icon: '📈', page: 'reports' },
   ];
 

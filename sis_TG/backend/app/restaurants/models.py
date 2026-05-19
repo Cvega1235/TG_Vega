@@ -170,6 +170,7 @@ class RestaurantMLScore(Base):
     icp_similarity: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     cluster_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     composite_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    conversion_probability: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     calculated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -191,6 +192,14 @@ class MLRunMetadata(Base):
     calinski_harabasz_index: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     total_restaurants_scored: Mapped[int] = mapped_column(Integer, nullable=False)
     icp_clients_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Métricas del clasificador supervisado (nullable: se rellenan solo si hay ≥2 clientes)
+    cls_precision: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_recall: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_f1: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_auc_roc: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_cv_f1_mean: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_cv_f1_std: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    cls_support_positive: Mapped[int | None] = mapped_column(Integer, nullable=True)
     run_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
