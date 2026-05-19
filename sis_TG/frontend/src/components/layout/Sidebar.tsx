@@ -21,6 +21,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const links = allLinks.filter(({ page }) => hasPermission(page));
   if (hasRole('admin')) {
     links.push({ to: '/users',    label: 'Usuarios',  icon: '👥', page: 'users' });
+    links.push({ to: '/scraping', label: 'Scraping',  icon: '🔍', page: 'scraping' });
     links.push({ to: '/security', label: 'Seguridad', icon: '🛡️', page: 'security' });
   }
 

@@ -38,6 +38,27 @@ export interface TopScoredItem {
   tiene_embutidos: boolean | null;
 }
 
+export interface MonthlyConversion {
+  month: string;
+  label: string;
+  count: number;
+}
+
+export interface RecentConversion {
+  id: number;
+  nombre: string;
+  zona: string | null;
+  tipo_cocina: string | null;
+  converted_at: string;
+}
+
+export interface ClientHistoryData {
+  monthly: MonthlyConversion[];
+  recent_conversions: RecentConversion[];
+  total_clients: number;
+  new_this_month: number;
+}
+
 export interface TopProspect {
   id: number;
   nombre: string;

@@ -21,6 +21,7 @@ from app.exports.router import router as exports_router
 from app.ml.router import router as ml_router
 from app.scraping.router import router as scraping_router
 from app.security.router import router as security_router
+from app.emails.router import router as emails_router
 from app.auth.dependencies import require_role
 from app.migration_tool.importer import import_json, import_csv_data, import_sqlite
 
@@ -142,6 +143,7 @@ app.include_router(exports_router)
 app.include_router(ml_router)
 app.include_router(scraping_router)
 app.include_router(security_router)
+app.include_router(emails_router)
 
 
 # Import endpoints

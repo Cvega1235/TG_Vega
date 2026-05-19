@@ -1,3 +1,4 @@
+import difflib
 import math
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
@@ -142,6 +143,125 @@ class RestaurantService:
         self.db.commit()
         self.db.refresh(restaurant)
         return restaurant
+
+    def match_client_names(self, names: list[str]) -> list[dict]:
+        rows = (
+            self.db.query(
+                Restaurant.id, Restaurant.nombre, Restaurant.zona,
+                Restaurant.status, Restaurant.fuente,
+            ).all()
+        )
+
+        results = []
+        for raw_name in names:
+            name = raw_name.strip()
+            if not name:
+                continue
+
+            name_lower = name.lower()
+
+            # Exact match (case-insensitive)
+            exact = next((r for r in rows if r.nombre.lower() == name_lower), None)
+            if exact:
+                results.append({
+                    "input_name": name,
+                    "match_type": "exact",
+                    "confidence": 1.0,
+                    "restaurant_id": exact.id,
+                    "restaurant_nombre": exact.nombre,
+                    "zona": exact.zona,
+                    "fuente": exact.fuente,
+                    "current_status": exact.status,
+                })
+                continue
+
+            # Fuzzy match
+            best_ratio = 0.0
+            best_row = None
+            for r in rows:
+                ratio = difflib.SequenceMatcher(None, name_lower, r.nombre.lower()).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_row = r
+
+            if best_row and best_ratio >= 0.65:
+                results.append({
+                    "input_name": name,
+                    "match_type": "fuzzy",
+                    "confidence": round(best_ratio, 3),
+                    "restaurant_id": best_row.id,
+                    "restaurant_nombre": best_row.nombre,
+                    "zona": best_row.zona,
+                    "fuente": best_row.fuente,
+                    "current_status": best_row.status,
+                })
+            else:
+                results.append({
+                    "input_name": name,
+                    "match_type": "no_match",
+                    "confidence": 0.0,
+                    "restaurant_id": None,
+                    "restaurant_nombre": None,
+                    "zona": None,
+                    "fuente": None,
+                    "current_status": None,
+                })
+
+        return results
+
+    def apply_client_updates(
+        self,
+        restaurant_ids: list[int],
+        user: User,
+        replace_mode: bool = False,
+        address_updates: dict[int, str] | None = None,
+    ) -> dict:
+        updated = 0
+        already_client = 0
+        demoted = 0
+
+        id_set = set(restaurant_ids)
+
+        for rid in restaurant_ids:
+            restaurant = self.db.query(Restaurant).filter(Restaurant.id == rid).first()
+            if not restaurant:
+                continue
+
+            if address_updates and rid in address_updates and address_updates[rid]:
+                restaurant.direccion = address_updates[rid]
+
+            if restaurant.status == "cliente":
+                already_client += 1
+                continue
+
+            old_status = restaurant.status
+            restaurant.status = "cliente"
+            self.db.add(RestaurantStatusChange(
+                restaurant_id=rid,
+                user_id=user.id,
+                old_status=old_status,
+                new_status="cliente",
+            ))
+            updated += 1
+
+        if replace_mode:
+            current_clients = (
+                self.db.query(Restaurant)
+                .filter(Restaurant.status == "cliente", Restaurant.id.notin_(id_set))
+                .all()
+            )
+            for r in current_clients:
+                r.status = "contactado"
+                self.db.add(RestaurantStatusChange(
+                    restaurant_id=r.id,
+                    user_id=user.id,
+                    old_status="cliente",
+                    new_status="contactado",
+                ))
+                demoted += 1
+
+        self.db.commit()
+        return {"updated": updated, "already_client": already_client, "demoted": demoted}
 
     def add_note(self, restaurant_id: int, content: str, user: User) -> RestaurantNote:
         restaurant = self.db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()

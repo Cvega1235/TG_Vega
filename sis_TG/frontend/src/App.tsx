@@ -19,6 +19,7 @@ import MLAnalysisPage from './pages/MLAnalysisPage';
 import ReportsPage from './pages/ReportsPage';
 import ClientsPage from './pages/ClientsPage';
 import SecurityPage from './pages/SecurityPage';
+import ScrapingPage from './pages/ScrapingPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +64,14 @@ export default function App() {
                 element={
                   <ProtectedRoute minRole="admin">
                     <SecurityPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/scraping"
+                element={
+                  <ProtectedRoute minRole="admin">
+                    <ScrapingPage />
                   </ProtectedRoute>
                 }
               />

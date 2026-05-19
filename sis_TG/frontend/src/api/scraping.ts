@@ -1,5 +1,20 @@
 import apiClient from './client';
 
+export interface ScrapingRun {
+  id: number;
+  source_file: string | null;
+  source_type: string | null;
+  records_total: number | null;
+  records_imported: number | null;
+  records_skipped: number | null;
+  imported_at: string;
+}
+
+export interface ScrapingHistory {
+  total_restaurants: number;
+  runs: ScrapingRun[];
+}
+
 export interface ScrapingJob {
   job_id: string;
   status: 'running' | 'completed' | 'error';
@@ -32,5 +47,10 @@ export async function runScraper(
 
 export async function getScrapingStatus(jobId: string): Promise<ScrapingJob> {
   const res = await apiClient.get<ScrapingJob>(`/scraping/status/${jobId}`);
+  return res.data;
+}
+
+export async function getScrapingHistory(limit = 30): Promise<ScrapingHistory> {
+  const res = await apiClient.get<ScrapingHistory>('/scraping/history', { params: { limit } });
   return res.data;
 }

@@ -60,3 +60,24 @@ class TopProspectItem(BaseModel):
     score_source: str = "icp"
 
     model_config = {"from_attributes": True}
+
+
+class MonthlyConversion(BaseModel):
+    month: str
+    label: str
+    count: int
+
+
+class RecentConversion(BaseModel):
+    id: int
+    nombre: str
+    zona: str | None = None
+    tipo_cocina: str | None = None
+    converted_at: str
+
+
+class ClientHistoryData(BaseModel):
+    monthly: list[MonthlyConversion]
+    recent_conversions: list[RecentConversion]
+    total_clients: int
+    new_this_month: int

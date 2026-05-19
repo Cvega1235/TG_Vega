@@ -6,6 +6,7 @@ from app.auth.dependencies import require_role
 from app.users.models import User
 from app.dashboard.schemas import (
     DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspectItem,
+    ClientHistoryData,
 )
 from app.dashboard.service import DashboardService
 from app.scoring.engine import calculate_all_scores
@@ -15,38 +16,42 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 @router.get("/stats", response_model=DashboardStats)
 def get_stats(
+    fuente: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     service = DashboardService(db)
-    return service.get_stats()
+    return service.get_stats(fuente)
 
 
 @router.get("/by-zone", response_model=list[ChartDataPoint])
 def get_by_zone(
+    fuente: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     service = DashboardService(db)
-    return service.get_by_zone()
+    return service.get_by_zone(fuente)
 
 
 @router.get("/by-rating", response_model=list[ChartDataPoint])
 def get_by_rating(
+    fuente: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     service = DashboardService(db)
-    return service.get_by_rating()
+    return service.get_by_rating(fuente)
 
 
 @router.get("/by-cuisine", response_model=list[ChartDataPoint])
 def get_by_cuisine(
+    fuente: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     service = DashboardService(db)
-    return service.get_by_cuisine()
+    return service.get_by_cuisine(fuente)
 
 
 @router.get("/by-source", response_model=list[ChartDataPoint])
@@ -60,11 +65,12 @@ def get_by_source(
 
 @router.get("/by-status", response_model=list[ChartDataPoint])
 def get_by_status(
+    fuente: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     service = DashboardService(db)
-    return service.get_by_status()
+    return service.get_by_status(fuente)
 
 
 @router.get("/map-data", response_model=list[MapDataPoint])
@@ -94,6 +100,15 @@ def get_top_scores(
 ):
     service = DashboardService(db)
     return service.get_top_scores(limit)
+
+
+@router.get("/client-history", response_model=ClientHistoryData)
+def get_client_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    service = DashboardService(db)
+    return service.get_client_history()
 
 
 @router.post("/recalculate-scores")

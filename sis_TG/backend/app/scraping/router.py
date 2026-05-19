@@ -7,6 +7,8 @@ from app.auth.dependencies import require_role
 from app.database import get_db
 from app.scraping.service import ScrapingService, get_job, list_jobs
 from app.users.models import User
+from app.restaurants.models import ScrapingImport, Restaurant
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/scraping", tags=["scraping"])
 
@@ -54,3 +56,36 @@ def list_scraping_jobs(
 ):
     """Lista todos los trabajos de scraping registrados en esta sesión del servidor."""
     return list_jobs()
+
+
+@router.get("/history")
+def scraping_history(
+    limit: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Retorna el historial de importaciones ordenado por fecha descendente."""
+    rows = (
+        db.query(ScrapingImport)
+        .order_by(ScrapingImport.imported_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    total_restaurants = db.query(func.count(Restaurant.id)).scalar() or 0
+
+    return {
+        "total_restaurants": total_restaurants,
+        "runs": [
+            {
+                "id": r.id,
+                "source_file": r.source_file,
+                "source_type": r.source_type,
+                "records_total": r.records_total,
+                "records_imported": r.records_imported,
+                "records_skipped": r.records_skipped,
+                "imported_at": r.imported_at.isoformat(),
+            }
+            for r in rows
+        ],
+    }

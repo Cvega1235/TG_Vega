@@ -1,43 +1,58 @@
+from datetime import datetime, timezone, timedelta
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore
+from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore, RestaurantStatusChange
 
 
 class DashboardService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_stats(self) -> dict:
-        total = self.db.query(func.count(Restaurant.id)).scalar() or 0
-        avg_rating = self.db.query(func.avg(Restaurant.rating)).filter(
-            Restaurant.rating.isnot(None)
+    def _fuente_filter(self, q, fuente: str | None):
+        if fuente:
+            q = q.filter(Restaurant.fuente == fuente)
+        return q
+
+    def get_stats(self, fuente: str | None = None) -> dict:
+        base = lambda q: self._fuente_filter(q, fuente)  # noqa: E731
+
+        total = base(self.db.query(func.count(Restaurant.id))).scalar() or 0
+        avg_rating = base(
+            self.db.query(func.avg(Restaurant.rating)).filter(Restaurant.rating.isnot(None))
         ).scalar()
 
-        high_affinity = self.db.query(func.count(RestaurantMLScore.id)).filter(
-            RestaurantMLScore.composite_score >= 70
+        high_affinity = (
+            self._fuente_filter(
+                self.db.query(func.count(RestaurantMLScore.id))
+                .join(Restaurant, Restaurant.id == RestaurantMLScore.restaurant_id),
+                fuente,
+            ).filter(RestaurantMLScore.composite_score >= 70).scalar() or 0
+        )
+
+        clients_count = base(
+            self.db.query(func.count(Restaurant.id)).filter(Restaurant.status == "cliente")
         ).scalar() or 0
 
-        clients_count = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.status == "cliente"
-        ).scalar() or 0
-
-        with_embutidos = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.tiene_embutidos == True  # noqa: E712
+        with_embutidos = base(
+            self.db.query(func.count(Restaurant.id)).filter(
+                Restaurant.tiene_embutidos == True  # noqa: E712
+            )
         ).scalar() or 0
 
         to_contact = (
-            self.db.query(func.count(Restaurant.id))
-            .join(RestaurantMLScore)
-            .filter(
+            self._fuente_filter(
+                self.db.query(func.count(Restaurant.id)).join(RestaurantMLScore),
+                fuente,
+            ).filter(
                 Restaurant.status == "nuevo",
                 RestaurantMLScore.composite_score >= 60,
-            )
-            .scalar() or 0
+            ).scalar() or 0
         )
 
         status_rows = (
-            self.db.query(Restaurant.status, func.count(Restaurant.id))
+            base(self.db.query(Restaurant.status, func.count(Restaurant.id)))
             .group_by(Restaurant.status)
             .all()
         )
@@ -50,14 +65,18 @@ class DashboardService:
         )
         source_counts = {row[0]: row[1] for row in source_rows}
 
-        with_coordinates = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.latitud.isnot(None),
-            Restaurant.longitud.isnot(None),
+        with_coordinates = base(
+            self.db.query(func.count(Restaurant.id)).filter(
+                Restaurant.latitud.isnot(None),
+                Restaurant.longitud.isnot(None),
+            )
         ).scalar() or 0
 
-        with_phone = self.db.query(func.count(Restaurant.id)).filter(
-            Restaurant.telefono.isnot(None),
-            Restaurant.telefono != "",
+        with_phone = base(
+            self.db.query(func.count(Restaurant.id)).filter(
+                Restaurant.telefono.isnot(None),
+                Restaurant.telefono != "",
+            )
         ).scalar() or 0
 
         return {
@@ -73,17 +92,20 @@ class DashboardService:
             "source_counts": source_counts,
         }
 
-    def get_by_zone(self) -> list[dict]:
+    def get_by_zone(self, fuente: str | None = None) -> list[dict]:
         rows = (
-            self.db.query(Restaurant.zona, func.count(Restaurant.id))
-            .filter(Restaurant.zona.isnot(None))
+            self._fuente_filter(
+                self.db.query(Restaurant.zona, func.count(Restaurant.id))
+                .filter(Restaurant.zona.isnot(None)),
+                fuente,
+            )
             .group_by(Restaurant.zona)
             .order_by(func.count(Restaurant.id).desc())
             .all()
         )
         return [{"label": row[0], "value": row[1]} for row in rows]
 
-    def get_by_rating(self) -> list[dict]:
+    def get_by_rating(self, fuente: str | None = None) -> list[dict]:
         ranges = [
             ("0-1", 0, 1),
             ("1-2", 1, 2),
@@ -94,17 +116,22 @@ class DashboardService:
         result = []
         for label, low, high in ranges:
             count = (
-                self.db.query(func.count(Restaurant.id))
-                .filter(Restaurant.rating >= low, Restaurant.rating < high)
-                .scalar()
+                self._fuente_filter(
+                    self.db.query(func.count(Restaurant.id))
+                    .filter(Restaurant.rating >= low, Restaurant.rating < high),
+                    fuente,
+                ).scalar()
             ) or 0
             result.append({"label": label, "value": count})
         return result
 
-    def get_by_cuisine(self) -> list[dict]:
+    def get_by_cuisine(self, fuente: str | None = None) -> list[dict]:
         rows = (
-            self.db.query(Restaurant.tipo_cocina, func.count(Restaurant.id))
-            .filter(Restaurant.tipo_cocina.isnot(None), Restaurant.tipo_cocina != "")
+            self._fuente_filter(
+                self.db.query(Restaurant.tipo_cocina, func.count(Restaurant.id))
+                .filter(Restaurant.tipo_cocina.isnot(None), Restaurant.tipo_cocina != ""),
+                fuente,
+            )
             .group_by(Restaurant.tipo_cocina)
             .order_by(func.count(Restaurant.id).desc())
             .limit(15)
@@ -120,9 +147,12 @@ class DashboardService:
         )
         return [{"label": row[0], "value": row[1]} for row in rows]
 
-    def get_by_status(self) -> list[dict]:
+    def get_by_status(self, fuente: str | None = None) -> list[dict]:
         rows = (
-            self.db.query(Restaurant.status, func.count(Restaurant.id))
+            self._fuente_filter(
+                self.db.query(Restaurant.status, func.count(Restaurant.id)),
+                fuente,
+            )
             .group_by(Restaurant.status)
             .all()
         )
@@ -191,6 +221,79 @@ class DashboardService:
             }
             for row in rows
         ]
+
+    def get_client_history(self) -> dict:
+        start_date = datetime.now(timezone.utc) - timedelta(days=365)
+
+        monthly_rows = (
+            self.db.query(
+                func.date_trunc("month", RestaurantStatusChange.changed_at).label("month"),
+                func.count().label("count"),
+            )
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                RestaurantStatusChange.changed_at >= start_date,
+            )
+            .group_by("month")
+            .order_by("month")
+            .all()
+        )
+
+        monthly = [
+            {
+                "month": row.month.strftime("%Y-%m"),
+                "label": row.month.strftime("%b %Y"),
+                "count": row.count,
+            }
+            for row in monthly_rows
+        ]
+
+        recent_rows = (
+            self.db.query(
+                Restaurant.id,
+                Restaurant.nombre,
+                Restaurant.zona,
+                Restaurant.tipo_cocina,
+                RestaurantStatusChange.changed_at,
+            )
+            .join(RestaurantStatusChange, Restaurant.id == RestaurantStatusChange.restaurant_id)
+            .filter(RestaurantStatusChange.new_status == "cliente")
+            .order_by(RestaurantStatusChange.changed_at.desc())
+            .limit(5)
+            .all()
+        )
+
+        recent_conversions = [
+            {
+                "id": row[0],
+                "nombre": row[1],
+                "zona": row[2],
+                "tipo_cocina": row[3],
+                "converted_at": row[4].isoformat(),
+            }
+            for row in recent_rows
+        ]
+
+        total_clients = self.db.query(func.count(Restaurant.id)).filter(
+            Restaurant.status == "cliente"
+        ).scalar() or 0
+
+        last_month_start = datetime.now(timezone.utc).replace(day=1)
+        new_this_month = (
+            self.db.query(func.count(RestaurantStatusChange.id))
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                RestaurantStatusChange.changed_at >= last_month_start,
+            )
+            .scalar() or 0
+        )
+
+        return {
+            "monthly": monthly,
+            "recent_conversions": recent_conversions,
+            "total_clients": total_clients,
+            "new_this_month": new_this_month,
+        }
 
     def get_top_scores(self, limit: int = 15) -> list[dict]:
         rows = (

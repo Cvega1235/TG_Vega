@@ -5,11 +5,22 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.dependencies import get_current_user, require_role
 from app.users.models import User
+from pydantic import BaseModel
 from app.restaurants.schemas import (
     RestaurantWithScore, RestaurantUpdate, StatusUpdate,
     NoteCreate, NoteResponse, StatusChangeResponse,
     PaginatedRestaurants,
 )
+
+
+class BulkMatchRequest(BaseModel):
+    names: list[str]
+
+
+class BulkApplyRequest(BaseModel):
+    restaurant_ids: list[int]
+    replace_mode: bool = False
+    address_updates: dict[int, str] = {}
 from app.restaurants.service import RestaurantService
 from app.restaurants.models import Restaurant
 from app.restaurants.menu_analyzer import run_analysis
@@ -185,3 +196,28 @@ def get_history(
 ):
     service = RestaurantService(db)
     return service.get_history(restaurant_id)
+
+
+@router.post("/bulk-match")
+def bulk_match_clients(
+    data: BulkMatchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("analista")),
+):
+    service = RestaurantService(db)
+    return service.match_client_names(data.names)
+
+
+@router.post("/bulk-apply")
+def bulk_apply_clients(
+    data: BulkApplyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("analista")),
+):
+    service = RestaurantService(db)
+    return service.apply_client_updates(
+        data.restaurant_ids,
+        current_user,
+        replace_mode=data.replace_mode,
+        address_updates={int(k): v for k, v in data.address_updates.items()} if data.address_updates else None,
+    )

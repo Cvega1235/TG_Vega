@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { getRestaurant, getNotes, getHistory, addNote, updateRestaurantStatus } from '../api/restaurants';
 import StatusBadge from '../components/common/StatusBadge';
+import ContactEmailModal from '../components/emails/ContactEmailModal';
 import { ALL_STATUSES, STATUS_LABELS } from '../utils/constants';
 import { useAuth } from '../auth/AuthContext';
 
@@ -13,6 +14,7 @@ export default function RestaurantDetailPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const [noteContent, setNoteContent] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const { data: restaurant, isLoading } = useQuery({
     queryKey: ['restaurant', restaurantId],
@@ -65,17 +67,31 @@ export default function RestaurantDetailPage() {
               <StatusBadge status={restaurant.status} />
             </div>
           </div>
-          {hasRole('analista') && (
-            <select
-              value={restaurant.status}
-              onChange={(e) => statusMutation.mutate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
-            >
-              {ALL_STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-              ))}
-            </select>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {hasRole('analista') && (
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 border border-primary-300 text-primary-600 rounded-lg text-sm hover:bg-primary-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Enviar Email
+              </button>
+            )}
+            {hasRole('analista') && (
+              <select
+                value={restaurant.status}
+                onChange={(e) => statusMutation.mutate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
+              >
+                {ALL_STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       </div>
 
@@ -221,6 +237,14 @@ export default function RestaurantDetailPage() {
           )}
         </div>
       </div>
+
+      {showEmailModal && (
+        <ContactEmailModal
+          restaurantId={restaurantId}
+          restaurantName={restaurant.nombre}
+          onClose={() => setShowEmailModal(false)}
+        />
+      )}
     </div>
   );
 }
