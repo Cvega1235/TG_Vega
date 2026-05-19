@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -118,14 +119,16 @@ function MLConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCanc
 export default function MLAnalysisPage() {
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [prospectLimit, setProspectLimit] = useState(20);
+  const [includeClients, setIncludeClients] = useState(false);
   const [showMLConfirm, setShowMLConfirm] = useState(false);
 
   const { data: latestRun } = useQuery({ queryKey: ['ml-latest-run'], queryFn: getLatestRun });
   const { data: clusters, isLoading: loadingClusters } = useQuery({ queryKey: ['ml-clusters'], queryFn: getClusterProfiles });
   const { data: prospects, isLoading: loadingProspects } = useQuery({
-    queryKey: ['ml-top-prospects', prospectLimit],
-    queryFn: () => getTopProspects(prospectLimit),
+    queryKey: ['ml-top-prospects', prospectLimit, includeClients],
+    queryFn: () => getTopProspects(prospectLimit, includeClients),
   });
 
   const runPipeline = useMutation({
@@ -292,15 +295,26 @@ export default function MLAnalysisPage() {
               <h2 className="text-base font-semibold text-gray-800">Mejores Prospectos</h2>
               <p className="text-xs text-gray-400 mt-0.5">Restaurantes con mayor afinidad al perfil de cliente Don Piotr</p>
             </div>
-            <select
-              value={prospectLimit}
-              onChange={e => setProspectLimit(Number(e.target.value))}
-              className="border rounded px-3 py-1.5 text-sm w-full sm:w-auto"
-            >
-              <option value={10}>Top 10</option>
-              <option value={20}>Top 20</option>
-              <option value={50}>Top 50</option>
-            </select>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={includeClients}
+                  onChange={e => setIncludeClients(e.target.checked)}
+                  className="w-4 h-4 accent-primary-600 cursor-pointer"
+                />
+                Incluir clientes actuales
+              </label>
+              <select
+                value={prospectLimit}
+                onChange={e => setProspectLimit(Number(e.target.value))}
+                className="border rounded px-3 py-1.5 text-sm w-full sm:w-auto"
+              >
+                <option value={10}>Top 10</option>
+                <option value={20}>Top 20</option>
+                <option value={50}>Top 50</option>
+              </select>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -316,10 +330,14 @@ export default function MLAnalysisPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {prospects.map((p, i) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr
+                    key={p.id}
+                    className="hover:bg-primary-50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/restaurants/${p.id}`)}
+                  >
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-medium text-gray-800">
-                      <span className="block max-w-[160px] sm:max-w-xs truncate">{p.nombre}</span>
+                      <span className="block max-w-[160px] sm:max-w-xs truncate text-primary-600 hover:underline">{p.nombre}</span>
                       <span className="text-xs text-gray-400 sm:hidden">{p.zona ?? ''}</span>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-500 hidden sm:table-cell">{p.zona ?? '—'}</td>

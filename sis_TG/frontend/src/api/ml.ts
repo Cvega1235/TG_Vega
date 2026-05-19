@@ -16,9 +16,9 @@ export async function getClusterProfiles(): Promise<ClusterProfile[]> {
   return res.data;
 }
 
-export async function getTopProspects(limit = 20): Promise<TopProspect[]> {
+export async function getTopProspects(limit = 20, includeClients = false): Promise<TopProspect[]> {
   const res = await apiClient.get<TopProspect[]>('/ml/top-prospects', {
-    params: { limit },
+    params: { limit, include_clients: includeClients },
   });
   return res.data;
 }

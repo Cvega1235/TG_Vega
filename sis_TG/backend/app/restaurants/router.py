@@ -89,6 +89,8 @@ def list_restaurants(
     sort_order: str = "asc",
     has_coordinates: bool | None = None,
     tiene_embutidos: bool | None = None,
+    min_score: float | None = None,
+    prospecto: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
@@ -98,7 +100,8 @@ def list_restaurants(
         status=status, rating_min=rating_min, rating_max=rating_max,
         tipo_cocina=tipo_cocina, search=search, sort_by=sort_by,
         sort_order=sort_order, has_coordinates=has_coordinates,
-        tiene_embutidos=tiene_embutidos,
+        tiene_embutidos=tiene_embutidos, min_score=min_score,
+        prospecto=prospecto,
     )
 
 

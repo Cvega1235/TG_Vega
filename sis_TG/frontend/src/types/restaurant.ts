@@ -72,4 +72,7 @@ export interface RestaurantFilters {
   search?: string;
   sort_by?: string;
   sort_order?: string;
+  tiene_embutidos?: boolean;
+  min_score?: number;
+  prospecto?: boolean;
 }

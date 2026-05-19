@@ -31,6 +31,8 @@ class RestaurantService:
         sort_order: str = "asc",
         has_coordinates: bool | None = None,
         tiene_embutidos: bool | None = None,
+        min_score: float | None = None,
+        prospecto: bool | None = None,
     ) -> dict:
         query = self.db.query(Restaurant).outerjoin(RestaurantScore)
 
@@ -59,6 +61,12 @@ class RestaurantService:
             )
         if tiene_embutidos is not None:
             query = query.filter(Restaurant.tiene_embutidos == tiene_embutidos)
+        if min_score is not None:
+            query = query.filter(RestaurantScore.total_score >= min_score)
+        if prospecto is True:
+            query = query.filter(
+                Restaurant.status.notin_(["cliente", "no_interesado"])
+            )
 
         # Sorting
         sort_column = getattr(Restaurant, sort_by, Restaurant.id)

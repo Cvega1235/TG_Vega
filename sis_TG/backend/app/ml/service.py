@@ -262,14 +262,19 @@ class MLService:
 
         return profiles
 
-    def get_top_prospects(self, limit: int = 20) -> list[TopProspectResponse]:
+    def get_top_prospects(self, limit: int = 20, include_clients: bool = False) -> list[TopProspectResponse]:
         """Obtiene los top prospectos por score compuesto."""
-        results = (
+        query = (
             self.db.query(Restaurant, RestaurantMLScore)
             .join(
                 RestaurantMLScore,
                 Restaurant.id == RestaurantMLScore.restaurant_id,
             )
+        )
+        if not include_clients:
+            query = query.filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+        results = (
+            query
             .order_by(RestaurantMLScore.composite_score.desc())
             .limit(limit)
             .all()

@@ -59,9 +59,10 @@ def get_cluster_profiles(
 @router.get("/top-prospects", response_model=list[TopProspectResponse])
 def get_top_prospects(
     limit: int = Query(20, ge=1, le=100),
+    include_clients: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("viewer")),
 ):
     """Obtiene los top prospectos por score compuesto ML."""
     service = MLService(db)
-    return service.get_top_prospects(limit=limit)
+    return service.get_top_prospects(limit=limit, include_clients=include_clients)

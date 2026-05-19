@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { DashboardStats } from '../../types/dashboard';
 
 interface Props {
@@ -12,6 +13,7 @@ interface CardDef {
   bg: string;
   iconBg: string;
   icon: React.ReactNode;
+  link: string;
 }
 
 const IconStore = () => (
@@ -51,20 +53,27 @@ const IconStar = () => (
   </svg>
 );
 
-function StatCard({ title, value, color, bg, iconBg, icon, delay }: CardDef & { delay: number }) {
+function StatCard({ title, value, color, bg, iconBg, icon, link, delay }: CardDef & { delay: number }) {
+  const navigate = useNavigate();
+
   return (
-    <div
-      className={`${bg} rounded-xl p-5 shadow-sm flex items-center gap-4 card-hover animate-fade-in`}
+    <button
+      onClick={() => navigate(link)}
+      className={`${bg} rounded-xl p-5 shadow-sm flex items-center gap-4 card-hover animate-fade-in w-full text-left
+        hover:shadow-md hover:scale-[1.02] transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-300`}
       style={{ animationDelay: `${delay}s` }}
     >
       <div className={`${iconBg} rounded-lg p-3 ${color} flex-shrink-0`}>
         {icon}
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-500 font-medium uppercase tracking-wide leading-tight">{title}</p>
         <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
       </div>
-    </div>
+      <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
   );
 }
 
@@ -87,6 +96,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-primary-50',
       iconBg: 'bg-primary-100',
       icon: <IconStore />,
+      link: '/restaurants',
     },
     {
       title: 'Alta Afinidad (Score ≥ 70)',
@@ -95,6 +105,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-green-50',
       iconBg: 'bg-green-100',
       icon: <IconTarget />,
+      link: '/restaurants?min_score=70&sort_by=total_score&sort_order=desc',
     },
     {
       title: 'Clientes Actuales',
@@ -103,6 +114,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-purple-50',
       iconBg: 'bg-purple-100',
       icon: <IconUsers />,
+      link: '/restaurants?status=cliente',
     },
     {
       title: 'Con Embutidos en Menu',
@@ -111,6 +123,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-orange-50',
       iconBg: 'bg-orange-100',
       icon: <IconSausage />,
+      link: '/restaurants?tiene_embutidos=true',
     },
     {
       title: 'Prospectos a Contactar',
@@ -119,6 +132,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-primary-50',
       iconBg: 'bg-primary-100',
       icon: <IconBell />,
+      link: '/restaurants?prospecto=true&sort_by=total_score&sort_order=desc',
     },
     {
       title: 'Rating Promedio',
@@ -127,6 +141,7 @@ export default function StatsCards({ stats, loading }: Props) {
       bg: 'bg-yellow-50',
       iconBg: 'bg-yellow-100',
       icon: <IconStar />,
+      link: '/restaurants?sort_by=rating&sort_order=desc',
     },
   ];
 
