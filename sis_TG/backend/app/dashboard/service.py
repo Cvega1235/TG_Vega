@@ -163,10 +163,12 @@ class DashboardService:
                 RestaurantScore.rating_score,
                 RestaurantScore.reviews_score,
                 RestaurantScore.zone_score,
+                RestaurantMLScore.composite_score,
             )
             .join(RestaurantScore)
+            .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
             .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
-            .order_by(RestaurantScore.total_score.desc())
+            .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
             .limit(limit)
             .all()
         )
@@ -180,11 +182,12 @@ class DashboardService:
                 "status": row[5],
                 "telefono": row[6],
                 "tiene_embutidos": row[7],
-                "total_score": float(row[8]),
+                "total_score": float(row[13]) if row[13] is not None else float(row[8]),
                 "cuisine_score": float(row[9]) if row[9] else None,
                 "rating_score": float(row[10]) if row[10] else None,
                 "reviews_score": float(row[11]) if row[11] else None,
                 "zone_score": float(row[12]) if row[12] else None,
+                "score_source": "ml" if row[13] is not None else "icp",
             }
             for row in rows
         ]
@@ -196,9 +199,11 @@ class DashboardService:
                 Restaurant.fuente, Restaurant.rating, Restaurant.status,
                 RestaurantScore.total_score, Restaurant.tipo_cocina,
                 Restaurant.tiene_embutidos,
+                RestaurantMLScore.composite_score,
             )
             .join(RestaurantScore)
-            .order_by(RestaurantScore.total_score.desc())
+            .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
             .limit(limit)
             .all()
         )
@@ -210,7 +215,7 @@ class DashboardService:
                 "fuente": row[3],
                 "rating": float(row[4]) if row[4] else None,
                 "status": row[5],
-                "total_score": float(row[6]),
+                "total_score": float(row[9]) if row[9] is not None else float(row[6]),
                 "tipo_cocina": row[7],
                 "tiene_embutidos": row[8],
             }

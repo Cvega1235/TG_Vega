@@ -57,5 +57,6 @@ class TopProspectItem(BaseModel):
     rating_score: float | None = None
     reviews_score: float | None = None
     zone_score: float | None = None
+    score_source: str = "icp"
 
     model_config = {"from_attributes": True}

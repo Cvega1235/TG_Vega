@@ -70,7 +70,7 @@ function ProspectCard({ prospect, rank }: { prospect: TopProspect; rank: number 
   const scorePct = Math.min(prospect.total_score, 100);
 
   return (
-    <div className={`rounded-2xl border-2 p-5 shadow-sm flex flex-col gap-4 ${RANK_BORDERS[rank]}`}>
+    <div className={`rounded-2xl border-2 p-5 shadow-sm flex flex-col gap-4 h-full ${RANK_BORDERS[rank]}`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -82,9 +82,18 @@ function ProspectCard({ prospect, rank }: { prospect: TopProspect; rank: number 
             </p>
           </div>
         </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[prospect.status] ?? 'bg-gray-100 text-gray-600'}`}>
-          {STATUS_LABELS[prospect.status] ?? prospect.status}
-        </span>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[prospect.status] ?? 'bg-gray-100 text-gray-600'}`}>
+            {STATUS_LABELS[prospect.status] ?? prospect.status}
+          </span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+            prospect.score_source === 'ml'
+              ? 'bg-blue-50 text-blue-600 border-blue-200'
+              : 'bg-gray-50 text-gray-400 border-gray-200'
+          }`}>
+            {prospect.score_source === 'ml' ? 'Score ML' : 'Score ICP'}
+          </span>
+        </div>
       </div>
 
       {/* Score ring + stats */}
@@ -125,7 +134,7 @@ function ProspectCard({ prospect, rank }: { prospect: TopProspect; rank: number 
       </div>
 
       {/* Reasons */}
-      <div className="bg-white/70 rounded-xl p-3 space-y-1.5 border border-gray-100">
+      <div className="flex-1 bg-white/70 rounded-xl p-3 space-y-1.5 border border-gray-100">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
           Por qué el sistema lo recomienda
         </p>
@@ -222,7 +231,7 @@ export default function ReportsPage() {
         </p>
 
         {topProspects && topProspects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
             {topProspects.map((p, i) => (
               <ProspectCard key={p.id} prospect={p} rank={i} />
             ))}

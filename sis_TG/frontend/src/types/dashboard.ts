@@ -52,4 +52,5 @@ export interface TopProspect {
   rating_score: number | null;
   reviews_score: number | null;
   zone_score: number | null;
+  score_source: 'ml' | 'icp';
 }

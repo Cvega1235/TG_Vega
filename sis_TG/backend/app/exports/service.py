@@ -305,10 +305,12 @@ def _get_top_prospects_pdf(db: Session, limit: int = 3) -> list[dict]:
             RestaurantScore.rating_score,
             RestaurantScore.reviews_score,
             RestaurantScore.zone_score,
+            RestaurantMLScore.composite_score,
         )
         .join(RestaurantScore)
+        .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
         .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
-        .order_by(RestaurantScore.total_score.desc())
+        .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
         .limit(limit)
         .all()
     )
@@ -317,11 +319,12 @@ def _get_top_prospects_pdf(db: Session, limit: int = 3) -> list[dict]:
             "nombre": r[0], "zona": r[1], "tipo_cocina": r[2],
             "rating": float(r[3]) if r[3] else None,
             "status": r[4], "tiene_embutidos": r[5],
-            "total_score": float(r[6]),
+            "total_score": float(r[11]) if r[11] is not None else float(r[6]),
             "cuisine_score": float(r[7]) if r[7] else None,
             "rating_score": float(r[8]) if r[8] else None,
             "reviews_score": float(r[9]) if r[9] else None,
             "zone_score": float(r[10]) if r[10] else None,
+            "score_source": "ml" if r[11] is not None else "icp",
         }
         for r in rows
     ]
