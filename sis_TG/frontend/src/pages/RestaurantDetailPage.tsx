@@ -52,6 +52,8 @@ export default function RestaurantDetailPage() {
   }
 
   const score = restaurant.score;
+  const mlScore = restaurant.ml_score ?? null;
+  const displayScore = mlScore?.composite_score ?? score?.total_score ?? null;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -133,9 +135,16 @@ export default function RestaurantDetailPage() {
             <div className="space-y-3">
               <div className="text-center mb-4">
                 <span className="text-4xl font-bold text-primary-600">
-                  {score.total_score.toFixed(1)}
+                  {displayScore != null ? displayScore.toFixed(1) : score.total_score.toFixed(1)}
                 </span>
                 <span className="text-lg text-gray-400">/100</span>
+                <div className="mt-1">
+                  {mlScore?.composite_score != null ? (
+                    <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">Score ML</span>
+                  ) : (
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Score heurístico</span>
+                  )}
+                </div>
               </div>
               <ScoreBar label="Afinidad Cocina" value={score.cuisine_score} max={30} color="bg-blue-500" />
               <ScoreBar label="Rating" value={score.rating_score} max={20} color="bg-yellow-500" />
