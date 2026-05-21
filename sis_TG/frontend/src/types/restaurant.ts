@@ -32,6 +32,7 @@ export interface ScoreData {
   zone_score: number | null;
   price_score: number | null;
   completeness_score: number | null;
+  conversion_probability: number | null;
   calculated_at: string;
 }
 

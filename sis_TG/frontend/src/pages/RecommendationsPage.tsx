@@ -18,7 +18,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function ScoreBadge({ score }: { score: number }) {
-  const pct = Math.round(score * 100);
+  const pct = Math.round(score);
   const color = pct >= 75 ? 'bg-green-100 text-green-800' : pct >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600';
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
@@ -107,7 +107,7 @@ function ZonasCard({ zonas }: { zonas: ZonaOportunidad[] }) {
               <div className="flex justify-between text-sm mb-1">
                 <span className="font-medium text-gray-800">{z.zona}</span>
                 <span className="text-gray-500">
-                  {z.total_prospectos} prospectos · score prom. {Math.round(z.avg_score * 100)}
+                  {z.total_prospectos} prospectos · score prom. {Math.round(z.avg_score)}
                 </span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2">

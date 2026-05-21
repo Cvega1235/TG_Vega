@@ -143,6 +143,22 @@ export default function RestaurantDetailPage() {
               <ScoreBar label="Zona Premium" value={score.zone_score} max={15} color="bg-purple-500" />
               <ScoreBar label="Nivel Precio" value={score.price_score} max={10} color="bg-orange-500" />
               <ScoreBar label="Completitud Datos" value={score.completeness_score} max={10} color="bg-red-500" />
+              {score.conversion_probability != null && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Prob. conversión (ML)</span>
+                    <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full ${
+                      score.conversion_probability >= 0.75
+                        ? 'bg-green-100 text-green-800'
+                        : score.conversion_probability >= 0.5
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {Math.round(score.conversion_probability * 100)}%
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-gray-400 text-sm">Score no calculado</p>
