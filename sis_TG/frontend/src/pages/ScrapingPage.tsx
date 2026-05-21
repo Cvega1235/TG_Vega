@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getScrapingHistory, runScraper, getScrapingStatus } from '../api/scraping';
+import { getScrapingHistory, runScraper, getScrapingStatus, getSchedule, saveSchedule, cancelSchedule } from '../api/scraping';
 import type { ScrapingJob } from '../api/scraping';
 
 function sourceLabel(source_file: string | null): string {
@@ -24,6 +24,159 @@ function StatusPill({ status }: { status: ScrapingJob['status'] }) {
     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${styles[status]}`}>
       {labels[status]}
     </span>
+  );
+}
+
+const INTERVAL_OPTIONS = [
+  { value: 15, label: 'Cada 15 días' },
+  { value: 30, label: 'Cada mes' },
+  { value: 60, label: 'Cada 2 meses' },
+];
+
+const SOURCE_OPTIONS = [
+  { value: 'all',     label: 'Todas las fuentes' },
+  { value: 'gmaps',   label: 'Google Maps' },
+  { value: 'bolivia', label: 'Bolivia en tus Manos' },
+];
+
+function ScheduleSection() {
+  const queryClient = useQueryClient();
+  const { data: schedule, isLoading } = useQuery({
+    queryKey: ['scrapingSchedule'],
+    queryFn: getSchedule,
+  });
+
+  const defaultStart = () => {
+    const d = new Date();
+    d.setMinutes(0, 0, 0);
+    d.setHours(d.getHours() + 1);
+    return d.toISOString().slice(0, 16);
+  };
+
+  const [intervalDays, setIntervalDays] = useState(30);
+  const [source, setSource] = useState('all');
+  const [startAt, setStartAt] = useState(defaultStart);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (schedule?.active && schedule.interval_days) {
+      setIntervalDays(schedule.interval_days);
+      setSource(schedule.source ?? 'all');
+      if (schedule.start_at) setStartAt(schedule.start_at.slice(0, 16));
+    }
+  }, [schedule]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => saveSchedule(intervalDays, source, new Date(startAt).toISOString()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scrapingSchedule'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelSchedule,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scrapingSchedule'] }),
+  });
+
+  if (isLoading) return null;
+
+  const isActive = schedule?.active ?? false;
+  const nextRun = schedule?.next_run_at
+    ? new Date(schedule.next_run_at).toLocaleString('es-ES', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : null;
+
+  return (
+    <div className="bg-white rounded-xl p-5 shadow-sm space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700">Scraping Programado</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Automatiza la recolección de datos periódicamente</p>
+        </div>
+        {isActive && (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Activo
+          </span>
+        )}
+      </div>
+
+      {isActive && nextRun && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
+          <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-xs text-blue-700">Próxima ejecución: <strong>{nextRun}</strong></span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Intervalo</label>
+          <select
+            value={intervalDays}
+            onChange={(e) => setIntervalDays(Number(e.target.value))}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+          >
+            {INTERVAL_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Fuente</label>
+          <select
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+          >
+            {SOURCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Fecha y hora de inicio</label>
+          <input
+            type="datetime-local"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors"
+        >
+          {saveMutation.isPending ? 'Guardando...' : isActive ? 'Actualizar programación' : 'Activar programación'}
+        </button>
+        {isActive && (
+          <button
+            onClick={() => cancelMutation.mutate()}
+            disabled={cancelMutation.isPending}
+            className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {cancelMutation.isPending ? 'Cancelando...' : 'Desactivar'}
+          </button>
+        )}
+        {saved && (
+          <span className="flex items-center gap-1 text-sm text-green-600 px-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Programación guardada
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -174,6 +327,9 @@ export default function ScrapingPage() {
           </div>
         )}
       </div>
+
+      {/* Scraping programado */}
+      <ScheduleSection />
 
       {/* Chart */}
       {chartData.length > 0 && (

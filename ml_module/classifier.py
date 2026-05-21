@@ -4,13 +4,16 @@ Clasificador supervisado para predecir probabilidad de conversión a cliente.
 Sistema de Inteligencia de Mercado Don Piotr
 
 Usa RandomForestClassifier binario: cliente (1) vs no-cliente (0).
-La imbalance de clases se maneja con class_weight='balanced'.
+El desbalance de clases se maneja con SMOTE en cada fold de CV y
+class_weight='balanced' en el modelo final.
 """
 
 import logging
 from typing import Dict
 
 import numpy as np
+from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
@@ -31,8 +34,9 @@ class ConversionClassifier:
     """Clasificador supervisado de conversión a cliente.
 
     Entrena un RandomForest binario usando la etiqueta derivada del
-    estado 'cliente' en la BD. Maneja el desbalance de clases con
-    class_weight='balanced'.
+    estado 'cliente' en la BD. El desbalance de clases se maneja con
+    SMOTE dentro de cada fold de validación cruzada y class_weight='balanced'
+    en el entrenamiento final.
 
     Uso:
         clf = ConversionClassifier()
@@ -52,8 +56,9 @@ class ConversionClassifier:
     def fit_and_validate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """Entrena el modelo y retorna métricas de validación cruzada.
 
-        Usa StratifiedKFold-5 para preservar la proporción de clases en
-        cada fold. El modelo final se entrena con todos los datos.
+        Usa StratifiedKFold-3 con SMOTE aplicado solo en el conjunto de
+        entrenamiento de cada fold para evitar data leakage. El modelo
+        final se entrena con todos los datos sin SMOTE.
 
         Args:
             X: Matriz de features (n_samples, n_features).
@@ -71,12 +76,24 @@ class ConversionClassifier:
             logger.warning("Menos de 2 clientes — clasificador omitido")
             return {}
 
-        # Número de folds limitado al mínimo entre 5 y n_positives
-        n_splits = min(5, n_positives)
+        # k=3 para que cada fold de test tenga ~1/3 de los positivos
+        # (más estable que k=5 con datasets pequeños)
+        n_splits = min(3, n_positives)
         cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=ml_config.RANDOM_STATE)
 
-        # CV solo con métricas de predicción (sin probabilidades para evitar
-        # incompatibilidades de make_scorer entre versiones de scikit-learn)
+        # SMOTE dentro del pipeline para que solo afecte al set de entrenamiento
+        # de cada fold (evita data leakage hacia el set de validación)
+        k_neighbors = min(5, n_positives - 1)
+        cv_pipeline = ImbPipeline([
+            ("smote", SMOTE(random_state=ml_config.RANDOM_STATE, k_neighbors=k_neighbors)),
+            ("clf", RandomForestClassifier(
+                n_estimators=200,
+                class_weight="balanced",
+                random_state=ml_config.RANDOM_STATE,
+                n_jobs=-1,
+            )),
+        ])
+
         scoring = {
             "accuracy": make_scorer(accuracy_score),
             "precision": make_scorer(precision_score, zero_division=0),
@@ -84,7 +101,7 @@ class ConversionClassifier:
             "f1": make_scorer(f1_score, zero_division=0),
         }
         cv_results = cross_validate(
-            self.model, X, y,
+            cv_pipeline, X, y,
             cv=cv,
             scoring=scoring,
             return_train_score=False,
@@ -93,9 +110,9 @@ class ConversionClassifier:
         cv_f1_mean = float(np.mean(cv_results["test_f1"]))
         cv_f1_std = float(np.std(cv_results["test_f1"]))
 
-        logger.info(f"CV F1: {cv_f1_mean:.4f} ± {cv_f1_std:.4f}")
+        logger.info(f"CV F1 (SMOTE, k={n_splits}): {cv_f1_mean:.4f} ± {cv_f1_std:.4f}")
 
-        # Entrenar modelo final con todos los datos
+        # Entrenar modelo final con todos los datos (sin SMOTE — datos reales)
         self.model.fit(X, y)
         self._is_fitted = True
 

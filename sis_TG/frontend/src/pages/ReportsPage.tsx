@@ -9,10 +9,10 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 import {
-  getStats, getByZone, getByStatus, getByCuisine, getByRating, getMapData, getTopProspects,
+  getStats, getByZone, getByStatus, getByCuisine, getByRating, getMapData,
 } from '../api/dashboard';
 import ExportMenu from '../components/common/ExportMenu';
-import type { MapDataPoint, TopProspect } from '../types/dashboard';
+import type { MapDataPoint } from '../types/dashboard';
 
 const COLORS = ['#9B1C2E', '#16a34a', '#eab308', '#ef4444', '#8b5cf6',
   '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#6366f1'];
@@ -25,16 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   no_interesado: 'No Interesado',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  nuevo: 'bg-blue-100 text-blue-700',
-  contactado: 'bg-yellow-100 text-yellow-700',
-  interesado: 'bg-orange-100 text-orange-700',
-};
-
 const FUNNEL_ORDER = ['nuevo', 'contactado', 'interesado', 'cliente'];
-const RANK_MEDALS = ['🥇', '🥈', '🥉'];
-const RANK_BORDERS = ['border-yellow-300 bg-gradient-to-br from-yellow-50 to-white', 'border-gray-300 bg-gradient-to-br from-gray-50 to-white', 'border-amber-700/30 bg-gradient-to-br from-amber-50 to-white'];
-const RANK_SCORE_COLORS = ['text-yellow-600', 'text-gray-500', 'text-amber-700'];
 
 function getScoreColor(score: number | null): string {
   if (score === null || score === undefined) return '#9ca3af';
@@ -53,110 +44,6 @@ function createScoreIcon(score: number | null) {
   });
 }
 
-function getReasons(p: TopProspect): string[] {
-  const reasons: string[] = [];
-  if ((p.cuisine_score ?? 0) >= 20) reasons.push('Alta afinidad de productos con el catálogo Don Piotr');
-  if ((p.rating_score ?? 0) >= 15) reasons.push('Rating excepcional entre los restaurantes del mercado');
-  if ((p.reviews_score ?? 0) >= 10) reasons.push('Alto volumen de reseñas indica establecimiento consolidado');
-  if ((p.zone_score ?? 0) >= 10) reasons.push('Ubicado en zona de alto potencial comercial');
-  if (p.tiene_embutidos) reasons.push('Menú con productos afines a embutidos detectado');
-  if (reasons.length === 0) reasons.push('Score compuesto elevado según análisis ML del sistema');
-  return reasons.slice(0, 3);
-}
-
-function ProspectCard({ prospect, rank }: { prospect: TopProspect; rank: number }) {
-  const navigate = useNavigate();
-  const reasons = getReasons(prospect);
-  const scorePct = Math.min(prospect.total_score, 100);
-
-  return (
-    <div className={`rounded-2xl border-2 p-5 shadow-sm flex flex-col gap-4 h-full ${RANK_BORDERS[rank]}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{RANK_MEDALS[rank]}</span>
-          <div>
-            <p className="font-bold text-gray-800 text-base leading-tight">{prospect.nombre}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {prospect.zona ?? 'Sin zona'} {prospect.tipo_cocina ? `· ${prospect.tipo_cocina}` : ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[prospect.status] ?? 'bg-gray-100 text-gray-600'}`}>
-            {STATUS_LABELS[prospect.status] ?? prospect.status}
-          </span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-            prospect.score_source === 'ml'
-              ? 'bg-blue-50 text-blue-600 border-blue-200'
-              : 'bg-gray-50 text-gray-400 border-gray-200'
-          }`}>
-            {prospect.score_source === 'ml' ? 'Score ML' : 'Score ICP'}
-          </span>
-        </div>
-      </div>
-
-      {/* Score ring + stats */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex items-center justify-center w-20 h-20 flex-shrink-0">
-          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#f3f4f6" strokeWidth="8" />
-            <circle
-              cx="40" cy="40" r="34" fill="none"
-              stroke={getScoreColor(prospect.total_score)}
-              strokeWidth="8"
-              strokeDasharray={`${(scorePct / 100) * 213.6} 213.6`}
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute text-center">
-            <p className={`text-lg font-bold leading-none ${RANK_SCORE_COLORS[rank]}`}>
-              {prospect.total_score.toFixed(0)}
-            </p>
-            <p className="text-[10px] text-gray-400">/100</p>
-          </div>
-        </div>
-        <div className="space-y-1 text-sm">
-          {prospect.rating && (
-            <p className="flex items-center gap-1 text-gray-600">
-              <span className="text-yellow-500">★</span>
-              <span className="font-medium">{prospect.rating.toFixed(1)}</span>
-              <span className="text-gray-400">/ 5</span>
-            </p>
-          )}
-          {prospect.telefono && (
-            <p className="text-gray-500 text-xs">📞 Teléfono disponible</p>
-          )}
-          {prospect.tiene_embutidos && (
-            <p className="text-green-600 text-xs font-medium">✓ Usa embutidos</p>
-          )}
-        </div>
-      </div>
-
-      {/* Reasons */}
-      <div className="flex-1 bg-white/70 rounded-xl p-3 space-y-1.5 border border-gray-100">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-          Por qué el sistema lo recomienda
-        </p>
-        {reasons.map((r, i) => (
-          <p key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
-            <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-            {r}
-          </p>
-        ))}
-      </div>
-
-      <button
-        onClick={() => navigate(`/restaurants/${prospect.id}`)}
-        className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all"
-        style={{ background: 'linear-gradient(90deg,#7F1D1D,#9B1C2E)' }}
-      >
-        Ver prospecto →
-      </button>
-    </div>
-  );
-}
-
 export default function ReportsPage() {
   const navigate = useNavigate();
 
@@ -166,7 +53,6 @@ export default function ReportsPage() {
   const { data: cuisineData } = useQuery({ queryKey: ['byCuisine'], queryFn: getByCuisine });
   const { data: ratingData } = useQuery({ queryKey: ['byRating'], queryFn: getByRating });
   const { data: mapData } = useQuery({ queryKey: ['mapData'], queryFn: getMapData });
-  const { data: topProspects } = useQuery({ queryKey: ['topProspects'], queryFn: () => getTopProspects(3) });
 
   const sourceChartData = useMemo(() => {
     if (!stats?.source_counts) return [];
@@ -216,35 +102,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ============================================ */}
-      {/* SECCIÓN 1: RECOMENDACIONES DEL SISTEMA       */}
-      {/* ============================================ */}
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <h3 className="text-lg font-bold text-gray-800">Recomendaciones del Sistema</h3>
-          <span className="text-xs bg-primary-100 text-primary-700 font-semibold px-2 py-0.5 rounded-full">
-            Análisis ML
-          </span>
-        </div>
-        <p className="text-sm text-gray-500 mb-5">
-          Los 3 restaurantes con mayor potencial de conversión según el modelo de inteligencia de mercado,
-          excluyendo clientes actuales y prospectos descartados.
-        </p>
-
-        {topProspects && topProspects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
-            {topProspects.map((p, i) => (
-              <ProspectCard key={p.id} prospect={p} rank={i} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
-            No hay prospectos con score calculado disponibles.
-          </div>
-        )}
-      </div>
-
-      {/* ============================================ */}
-      {/* SECCIÓN 2: RESUMEN DEL MERCADO               */}
+      {/* SECCIÓN 1: RESUMEN DEL MERCADO               */}
       {/* ============================================ */}
       <div>
         <h3 className="text-lg font-bold text-gray-800 mb-5 border-b pb-2">Resumen del Mercado</h3>

@@ -338,7 +338,7 @@ class MLService:
                     case((Restaurant.status == "cliente", 1), else_=0)
                 ).label("clientes"),
             )
-            .filter(Restaurant.tipo_cocina.isnot(None))
+            .filter(Restaurant.tipo_cocina.isnot(None), Restaurant.tipo_cocina != "")
             .group_by(Restaurant.tipo_cocina)
             .having(func.count(Restaurant.id) >= 3)
             .all()

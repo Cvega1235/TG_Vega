@@ -207,6 +207,20 @@ class MLRunMetadata(Base):
     )
 
 
+class ScrapingScheduleConfig(Base):
+    __tablename__ = "scraping_schedule_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    active: Mapped[bool] = mapped_column(default=False, nullable=False)
+    interval_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="all")
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class ScrapingImport(Base):
     __tablename__ = "scraping_imports"
 

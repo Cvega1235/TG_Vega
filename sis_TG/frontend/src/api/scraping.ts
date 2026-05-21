@@ -109,3 +109,36 @@ export async function applyEnrichment(updates: EnrichUpdate[]): Promise<{ applie
   const res = await apiClient.post<{ applied: number }>('/scraping/enrich/apply', { updates });
   return res.data;
 }
+
+// ---------------------------------------------------------------------------
+// Scraping programado
+// ---------------------------------------------------------------------------
+
+export interface ScheduleConfig {
+  active: boolean;
+  interval_days?: number;
+  source?: string;
+  start_at?: string;
+  next_run_at?: string;
+}
+
+export async function getSchedule(): Promise<ScheduleConfig> {
+  const res = await apiClient.get<ScheduleConfig>('/scraping/schedule');
+  return res.data;
+}
+
+export async function saveSchedule(
+  interval_days: number,
+  source: string,
+  start_at: string,
+): Promise<{ active: boolean; next_run_at: string }> {
+  const res = await apiClient.post<{ active: boolean; next_run_at: string }>(
+    '/scraping/schedule',
+    { interval_days, source, start_at },
+  );
+  return res.data;
+}
+
+export async function cancelSchedule(): Promise<void> {
+  await apiClient.delete('/scraping/schedule');
+}

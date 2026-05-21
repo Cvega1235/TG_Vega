@@ -113,7 +113,11 @@ async def lifespan(_app: FastAPI):
             db.commit()
     finally:
         db.close()
+
+    from app.scraping.scheduler import start_scheduler, shutdown_scheduler
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(

@@ -16,6 +16,12 @@ from sqlalchemy import func
 class EnrichApplyRequest(BaseModel):
     updates: list[dict]  # [{restaurant_id, updates: {field: value}}]
 
+
+class ScheduleRequest(BaseModel):
+    interval_days: int      # 15, 30 o 60
+    source: str             # all, gmaps, bolivia
+    start_at: str           # ISO datetime string
+
 router = APIRouter(prefix="/api/scraping", tags=["scraping"])
 
 
@@ -129,6 +135,52 @@ def enrich_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job no encontrado")
     return {"job_id": job_id, **job}
+
+
+# ---------------------------------------------------------------------------
+# Scraping programado
+# ---------------------------------------------------------------------------
+
+@router.get("/schedule")
+def get_schedule(
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Retorna la configuración actual del scraping programado."""
+    from app.scraping.scheduler import get_schedule_status
+    return get_schedule_status()
+
+
+@router.post("/schedule")
+def set_schedule(
+    data: ScheduleRequest,
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Guarda y activa el scraping programado."""
+    from datetime import datetime
+    from app.scraping.scheduler import save_schedule
+
+    if data.interval_days not in (15, 30, 60):
+        raise HTTPException(status_code=400, detail="interval_days debe ser 15, 30 o 60")
+    if data.source not in ("all", "gmaps", "bolivia"):
+        raise HTTPException(status_code=400, detail="source inválido")
+
+    try:
+        start_at = datetime.fromisoformat(data.start_at)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="start_at debe ser ISO datetime")
+
+    next_run_at = save_schedule(data.source, data.interval_days, start_at)
+    return {"active": True, "next_run_at": next_run_at.isoformat()}
+
+
+@router.delete("/schedule")
+def delete_schedule(
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Cancela el scraping programado."""
+    from app.scraping.scheduler import cancel_schedule
+    cancel_schedule()
+    return {"active": False}
 
 
 @router.post("/enrich/apply")

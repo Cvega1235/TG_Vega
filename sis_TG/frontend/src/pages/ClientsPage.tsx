@@ -25,7 +25,7 @@ export default function ClientsPage() {
         search: search || undefined,
         zona: zona || undefined,
         page,
-        per_page: 20,
+        per_page: 50,
         sort_by: 'nombre',
         sort_order: 'asc',
       }),
