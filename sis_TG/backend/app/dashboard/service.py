@@ -1,9 +1,29 @@
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore, RestaurantStatusChange
+
+_EXCLUDED_CATEGORIES = [
+    "panaderia", "panadería",
+    "heladeria", "heladería",
+    "chocolateria", "chocolatería",
+    "dulceria", "dulcería",
+    "fruteria", "frutería",
+    "jugos", "smoothie",
+    "creperia", "crepería",
+    "postres",
+]
+
+
+def _exclude_non_prospects(query):
+    conditions = []
+    for cat in _EXCLUDED_CATEGORIES:
+        conditions.append(and_(Restaurant.categoria.isnot(None), func.lower(Restaurant.categoria).contains(cat)))
+        conditions.append(and_(Restaurant.tipo_cocina.isnot(None), func.lower(Restaurant.tipo_cocina).contains(cat)))
+        conditions.append(func.lower(Restaurant.nombre).contains(cat))
+    return query.filter(~or_(*conditions))
 
 
 class DashboardService:
@@ -183,7 +203,7 @@ class DashboardService:
         ]
 
     def get_top_prospects(self, limit: int = 3) -> list[dict]:
-        rows = (
+        query = (
             self.db.query(
                 Restaurant.id, Restaurant.nombre, Restaurant.zona,
                 Restaurant.tipo_cocina, Restaurant.rating, Restaurant.status,
@@ -198,6 +218,10 @@ class DashboardService:
             .join(RestaurantScore)
             .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
             .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+        )
+        query = _exclude_non_prospects(query)
+        rows = (
+            query
             .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
             .limit(limit)
             .all()

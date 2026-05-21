@@ -27,6 +27,16 @@ CUISINE_AFFINITY = {
     "sushi": 0.25, "thai": 0.25,
     "india": 0.20, "bakery": 0.20, "pasteleria": 0.15,
     "vegetariana": 0.10, "vegana": 0.05,
+
+    # Tier 4: Sin afinidad con embutidos (0.02-0.05)
+    "panaderia": 0.04, "panadería": 0.04,
+    "heladeria": 0.03, "heladería": 0.03,
+    "chocolateria": 0.03, "chocolatería": 0.03,
+    "dulceria": 0.03, "dulcería": 0.03,
+    "fruteria": 0.03, "frutería": 0.03,
+    "jugos": 0.03, "smoothie": 0.03,
+    "creperia": 0.04, "crepería": 0.04,
+    "waffle": 0.04, "postres": 0.04,
 }
 
 ZONE_SCORES = {
@@ -51,4 +61,4 @@ PRICE_SCORES = {
 
 DEFAULT_ZONE_SCORE = 7.0
 DEFAULT_PRICE_SCORE = 5.0
-DEFAULT_CUISINE_AFFINITY = 0.50
+DEFAULT_CUISINE_AFFINITY = 0.30

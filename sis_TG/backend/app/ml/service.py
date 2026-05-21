@@ -4,6 +4,18 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+# Categorías que no son clientes potenciales de embutidos
+_EXCLUDED_CATEGORIES = [
+    "panaderia", "panadería",
+    "heladeria", "heladería",
+    "chocolateria", "chocolatería",
+    "dulceria", "dulcería",
+    "fruteria", "frutería",
+    "jugos", "smoothie",
+    "creperia", "crepería",
+    "postres",
+]
+
 import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -279,20 +291,28 @@ class MLService:
         from sqlalchemy import func, case
 
         # 1. Acciones rápidas: ya en contacto, score alto → más cerca de cerrar
-        acciones_rows = (
+        acciones_query = (
             self.db.query(Restaurant, RestaurantMLScore)
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
             .filter(Restaurant.status.in_(["contactado", "interesado"]))
+        )
+        acciones_query = self._exclude_non_prospects(acciones_query)
+        acciones_rows = (
+            acciones_query
             .order_by(RestaurantMLScore.composite_score.desc())
             .limit(8)
             .all()
         )
 
         # 2. Top sin contactar: status nuevo con score más alto
-        sin_contactar_rows = (
+        sin_contactar_query = (
             self.db.query(Restaurant, RestaurantMLScore)
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
             .filter(Restaurant.status == "nuevo")
+        )
+        sin_contactar_query = self._exclude_non_prospects(sin_contactar_query)
+        sin_contactar_rows = (
+            sin_contactar_query
             .order_by(RestaurantMLScore.composite_score.desc())
             .limit(8)
             .all()
@@ -403,6 +423,22 @@ class MLService:
             "cls_support_positive": run.cls_support_positive,
         }
 
+    def _exclude_non_prospects(self, query):
+        """Filtra categorías sin afinidad con embutidos de cualquier consulta."""
+        from sqlalchemy import and_, or_, func
+        conditions = []
+        for cat in _EXCLUDED_CATEGORIES:
+            # Use and_(IS NOT NULL, LIKE) to avoid NULL propagation in OR
+            conditions.append(
+                and_(Restaurant.categoria.isnot(None), func.lower(Restaurant.categoria).contains(cat))
+            )
+            conditions.append(
+                and_(Restaurant.tipo_cocina.isnot(None), func.lower(Restaurant.tipo_cocina).contains(cat))
+            )
+            # Also filter by name — catches "Panadería X" where tipo_cocina is something else
+            conditions.append(func.lower(Restaurant.nombre).contains(cat))
+        return query.filter(~or_(*conditions))
+
     def get_top_prospects(self, limit: int = 20, include_clients: bool = False) -> list[TopProspectResponse]:
         """Obtiene los top prospectos por score compuesto."""
         query = (
@@ -414,6 +450,7 @@ class MLService:
         )
         if not include_clients:
             query = query.filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+        query = self._exclude_non_prospects(query)
         results = (
             query
             .order_by(RestaurantMLScore.composite_score.desc())
