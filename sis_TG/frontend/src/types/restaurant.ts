@@ -1,3 +1,9 @@
+export interface MLScoreCompact {
+  cluster_id: number;
+  icp_similarity: number;
+  composite_score: number;
+}
+
 export interface Restaurant {
   id: number;
   fuente: string;
@@ -20,6 +26,7 @@ export interface Restaurant {
   created_at: string;
   updated_at: string;
   score: ScoreData | null;
+  ml_score: MLScoreCompact | null;
 }
 
 export type RestaurantStatus = 'nuevo' | 'contactado' | 'interesado' | 'cliente' | 'no_interesado';

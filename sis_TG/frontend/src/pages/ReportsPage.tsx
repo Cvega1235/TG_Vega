@@ -329,12 +329,12 @@ export default function ReportsPage() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               {mapData?.map((point) => (
-                <Marker key={point.id} position={[point.latitud, point.longitud]} icon={createScoreIcon(point.total_score)}>
+                <Marker key={point.id} position={[point.latitud, point.longitud]} icon={createScoreIcon(point.composite_score ?? point.total_score)}>
                   <Popup>
                     <div className="text-sm">
                       <p className="font-semibold">{point.nombre}</p>
                       {point.rating && <p>Rating: {point.rating}/5</p>}
-                      <p>Score: {point.total_score !== null ? point.total_score.toFixed(1) : 'Sin score'}</p>
+                      <p>Score: {(point.composite_score ?? point.total_score) != null ? (point.composite_score ?? point.total_score)!.toFixed(1) : 'Sin score'}</p>
                       <button onClick={() => navigate(`/restaurants/${point.id}`)} className="text-primary-500 hover:underline mt-1 block">
                         Ver detalle
                       </button>

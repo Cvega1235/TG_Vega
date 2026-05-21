@@ -80,7 +80,7 @@ class RestaurantService:
         total = query.count()
         pages = math.ceil(total / per_page) if per_page > 0 else 1
         items = (
-            query.options(joinedload(Restaurant.score))
+            query.options(joinedload(Restaurant.score), joinedload(Restaurant.ml_score))
             .offset((page - 1) * per_page)
             .limit(per_page)
             .all()
@@ -99,6 +99,7 @@ class RestaurantService:
             self.db.query(Restaurant)
             .options(
                 joinedload(Restaurant.score),
+                joinedload(Restaurant.ml_score),
                 joinedload(Restaurant.notes),
                 joinedload(Restaurant.status_changes),
             )

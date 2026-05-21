@@ -526,11 +526,18 @@ export default function RestaurantsPage() {
                         </select>
                       </td>
                       <td className="py-2.5 px-3 sm:px-4 text-right hidden sm:table-cell">
-                        {r.score ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-700">
-                            {r.score.total_score.toFixed(1)}
-                          </span>
-                        ) : '-'}
+                        {(() => {
+                          const displayScore = r.ml_score?.composite_score ?? r.score?.total_score ?? null;
+                          const isML = r.ml_score?.composite_score != null;
+                          return displayScore != null ? (
+                            <span
+                              title={isML ? 'Score ML' : 'Score heurístico'}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${isML ? 'bg-green-100 text-green-700' : 'bg-primary-100 text-primary-700'}`}
+                            >
+                              {displayScore.toFixed(1)}
+                            </span>
+                          ) : '-';
+                        })()}
                       </td>
                     </tr>
                   ))}

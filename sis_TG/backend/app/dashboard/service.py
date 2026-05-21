@@ -184,8 +184,10 @@ class DashboardService:
                 Restaurant.id, Restaurant.nombre, Restaurant.latitud,
                 Restaurant.longitud, Restaurant.rating, Restaurant.status,
                 RestaurantScore.total_score,
+                RestaurantMLScore.composite_score,
             )
             .outerjoin(RestaurantScore)
+            .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
             .filter(Restaurant.latitud.isnot(None), Restaurant.longitud.isnot(None))
             .all()
         )
@@ -198,6 +200,7 @@ class DashboardService:
                 "rating": float(row[4]) if row[4] else None,
                 "status": row[5],
                 "total_score": float(row[6]) if row[6] else None,
+                "composite_score": float(row[7]) if row[7] else None,
             }
             for row in rows
         ]

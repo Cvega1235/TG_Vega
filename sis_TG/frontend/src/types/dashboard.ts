@@ -24,6 +24,7 @@ export interface MapDataPoint {
   rating: number | null;
   status: string;
   total_score: number | null;
+  composite_score: number | null;
 }
 
 export interface TopScoredItem {
