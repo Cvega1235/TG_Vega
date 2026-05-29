@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
 import { bulkMatchClients, bulkApplyClients } from '../../api/restaurants';
 import type { ClientMatch } from '../../api/restaurants';
+import Portal from '../common/Portal';
 
 interface Props {
   onClose: () => void;
@@ -152,6 +153,7 @@ export default function ClientImportModal({ onClose }: Props) {
   const alreadyClientCount = matches.filter((m) => m.current_status === 'cliente').length;
 
   return (
+    <Portal>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
 
@@ -381,5 +383,6 @@ export default function ClientImportModal({ onClose }: Props) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

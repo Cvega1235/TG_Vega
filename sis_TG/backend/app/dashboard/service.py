@@ -322,6 +322,47 @@ class DashboardService:
             "new_this_month": new_this_month,
         }
 
+    def get_recent_summary(self, days: int = 30) -> dict:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+        new_restaurants = (
+            self.db.query(func.count(Restaurant.id))
+            .filter(Restaurant.created_at >= cutoff)
+            .scalar() or 0
+        )
+
+        new_high_score = (
+            self.db.query(func.count(Restaurant.id))
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .filter(
+                Restaurant.created_at >= cutoff,
+                RestaurantMLScore.composite_score >= 60,
+                Restaurant.status == "nuevo",
+            )
+            .scalar() or 0
+        )
+
+        new_clients = (
+            self.db.query(func.count(RestaurantStatusChange.id))
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                RestaurantStatusChange.changed_at >= cutoff,
+            )
+            .scalar() or 0
+        )
+
+        last_scraped = (
+            self.db.query(func.max(Restaurant.scraped_at)).scalar()
+        )
+
+        return {
+            "days": days,
+            "new_restaurants": new_restaurants,
+            "new_high_score_prospects": new_high_score,
+            "new_clients": new_clients,
+            "last_scraped_at": last_scraped.isoformat() if last_scraped else None,
+        }
+
     def get_top_scores(self, limit: int = 15) -> list[dict]:
         rows = (
             self.db.query(

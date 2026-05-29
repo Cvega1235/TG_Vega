@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { startEnrichment, getEnrichStatus, applyEnrichment } from '../../api/scraping';
 import type { EnrichJob, EnrichResult, EnrichUpdate } from '../../api/scraping';
+import Portal from '../common/Portal';
 
 interface Props {
   onClose: () => void;
@@ -105,6 +106,7 @@ export default function ClientEnrichModal({ onClose, onApplied }: Props) {
       : 0;
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -259,6 +261,7 @@ export default function ClientEnrichModal({ onClose, onApplied }: Props) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 

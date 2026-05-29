@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getStats, getByZone, getByRating, getByCuisine, getBySource, getMapData, getTopScores, getClientHistory } from '../api/dashboard';
+import { getStats, getByZone, getByRating, getByCuisine, getBySource, getMapData, getTopScores, getClientHistory, getRecentSummary } from '../api/dashboard';
 import StatsCards from '../components/dashboard/StatsCards';
 import MapView from '../components/dashboard/MapView';
 import ChartByZone from '../components/dashboard/ChartByZone';
@@ -8,10 +8,12 @@ import ChartByRating from '../components/dashboard/ChartByRating';
 import ChartByCuisine from '../components/dashboard/ChartByCuisine';
 import TopScoredTable from '../components/dashboard/TopScoredTable';
 import ClientHistorySection from '../components/dashboard/ClientHistorySection';
+import RecentActivityPanel from '../components/dashboard/RecentActivityPanel';
 import ExportMenu from '../components/common/ExportMenu';
 
 export default function DashboardPage() {
   const [selectedFuente, setSelectedFuente] = useState<string | null>(null);
+  const [selectedDays, setSelectedDays] = useState(30);
 
   const fuente = selectedFuente ?? undefined;
 
@@ -23,6 +25,10 @@ export default function DashboardPage() {
   const { data: mapData } = useQuery({ queryKey: ['mapData'], queryFn: getMapData });
   const { data: topScores } = useQuery({ queryKey: ['topScores'], queryFn: () => getTopScores(15) });
   const { data: clientHistory } = useQuery({ queryKey: ['clientHistory'], queryFn: getClientHistory });
+  const { data: recentSummary } = useQuery({
+    queryKey: ['recentSummary', selectedDays],
+    queryFn: () => getRecentSummary(selectedDays),
+  });
 
   return (
     <div className="space-y-6">
@@ -62,6 +68,12 @@ export default function DashboardPage() {
       )}
 
       <StatsCards stats={stats} loading={isLoading} />
+
+      <RecentActivityPanel
+        data={recentSummary}
+        days={selectedDays}
+        onChangeDays={setSelectedDays}
+      />
 
       <ClientHistorySection data={clientHistory} />
 

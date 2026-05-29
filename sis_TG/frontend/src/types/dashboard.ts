@@ -60,6 +60,14 @@ export interface ClientHistoryData {
   new_this_month: number;
 }
 
+export interface RecentSummary {
+  days: number;
+  new_restaurants: number;
+  new_high_score_prospects: number;
+  new_clients: number;
+  last_scraped_at: string | null;
+}
+
 export interface TopProspect {
   id: number;
   nombre: string;

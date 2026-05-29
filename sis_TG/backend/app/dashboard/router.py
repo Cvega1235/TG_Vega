@@ -6,7 +6,7 @@ from app.auth.dependencies import require_role
 from app.users.models import User
 from app.dashboard.schemas import (
     DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspectItem,
-    ClientHistoryData,
+    ClientHistoryData, RecentSummary,
 )
 from app.dashboard.service import DashboardService
 from app.scoring.engine import calculate_all_scores
@@ -109,6 +109,16 @@ def get_client_history(
 ):
     service = DashboardService(db)
     return service.get_client_history()
+
+
+@router.get("/recent-summary", response_model=RecentSummary)
+def get_recent_summary(
+    days: int = Query(30, ge=7, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    service = DashboardService(db)
+    return service.get_recent_summary(days)
 
 
 @router.post("/recalculate-scores")

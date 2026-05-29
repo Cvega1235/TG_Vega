@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspect, ClientHistoryData } from '../types/dashboard';
+import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspect, ClientHistoryData, RecentSummary } from '../types/dashboard';
 
 function fuenteParam(fuente: unknown): Record<string, string> {
   return typeof fuente === 'string' && fuente ? { fuente } : {};
@@ -52,5 +52,10 @@ export async function getTopProspects(limit = 3): Promise<TopProspect[]> {
 
 export async function getClientHistory(): Promise<ClientHistoryData> {
   const res = await apiClient.get<ClientHistoryData>('/dashboard/client-history');
+  return res.data;
+}
+
+export async function getRecentSummary(days: number): Promise<RecentSummary> {
+  const res = await apiClient.get<RecentSummary>('/dashboard/recent-summary', { params: { days } });
   return res.data;
 }

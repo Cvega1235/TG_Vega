@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { sendContactEmail } from '../../api/emails';
+import Portal from '../common/Portal';
 
 interface Props {
   restaurantId: number;
@@ -40,6 +41,7 @@ export default function ContactEmailModal({ restaurantId, restaurantName, onClos
   });
 
   return (
+    <Portal>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -114,5 +116,6 @@ export default function ContactEmailModal({ restaurantId, restaurantName, onClos
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

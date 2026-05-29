@@ -81,3 +81,11 @@ class ClientHistoryData(BaseModel):
     recent_conversions: list[RecentConversion]
     total_clients: int
     new_this_month: int
+
+
+class RecentSummary(BaseModel):
+    days: int
+    new_restaurants: int
+    new_high_score_prospects: int
+    new_clients: int
+    last_scraped_at: str | None = None
