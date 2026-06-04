@@ -90,21 +90,21 @@ export default function StatsCards({ stats, loading }: Props) {
 
   const cards: CardDef[] = [
     {
-      title: 'Total Restaurantes',
-      value: stats.total_restaurants,
-      color: 'text-primary-600',
-      bg: 'bg-primary-50',
-      iconBg: 'bg-primary-100',
-      icon: <IconStore />,
-      link: '/restaurants',
-    },
-    {
-      title: 'Alta Afinidad (Score ≥ 70)',
-      value: stats.high_affinity_count,
+      title: 'Tasa de Conversión',
+      value: `${stats.conversion_rate}%`,
       color: 'text-green-700',
       bg: 'bg-green-50',
       iconBg: 'bg-green-100',
       icon: <IconTarget />,
+      link: '/restaurants?status=cliente',
+    },
+    {
+      title: 'Alta Afinidad (Score ≥ 70)',
+      value: stats.high_affinity_count,
+      color: 'text-primary-600',
+      bg: 'bg-primary-50',
+      iconBg: 'bg-primary-100',
+      icon: <IconStar />,
       link: '/restaurants?min_score=70&sort_by=total_score&sort_order=desc',
     },
     {
@@ -117,13 +117,13 @@ export default function StatsCards({ stats, loading }: Props) {
       link: '/restaurants?status=cliente',
     },
     {
-      title: 'Con Embutidos en Menu',
-      value: stats.with_embutidos_count,
+      title: 'Restaurantes en Seguimiento',
+      value: stats.in_followup_count,
       color: 'text-orange-700',
       bg: 'bg-orange-50',
       iconBg: 'bg-orange-100',
       icon: <IconSausage />,
-      link: '/restaurants?tiene_embutidos=true',
+      link: '/restaurants?status=contactado',
     },
     {
       title: 'Prospectos a Contactar',
@@ -135,13 +135,13 @@ export default function StatsCards({ stats, loading }: Props) {
       link: '/restaurants?prospecto=true&sort_by=total_score&sort_order=desc',
     },
     {
-      title: 'Rating Promedio',
-      value: stats.avg_rating ? `${stats.avg_rating} / 5` : 'N/A',
+      title: 'Nuevos Clientes Este Mes',
+      value: stats.new_clients_this_month,
       color: 'text-yellow-700',
       bg: 'bg-yellow-50',
       iconBg: 'bg-yellow-100',
-      icon: <IconStar />,
-      link: '/restaurants?sort_by=rating&sort_order=desc',
+      icon: <IconStore />,
+      link: '/restaurants?status=cliente',
     },
   ];
 

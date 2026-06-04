@@ -6,7 +6,9 @@ class DashboardStats(BaseModel):
     avg_rating: float | None
     high_affinity_count: int
     clients_count: int
-    with_embutidos_count: int
+    in_followup_count: int
+    conversion_rate: float
+    new_clients_this_month: int
     to_contact_count: int
     total_with_coordinates: int
     total_with_phone: int

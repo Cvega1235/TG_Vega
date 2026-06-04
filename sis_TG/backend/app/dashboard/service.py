@@ -55,19 +55,37 @@ class DashboardService:
             self.db.query(func.count(Restaurant.id)).filter(Restaurant.status == "cliente")
         ).scalar() or 0
 
-        with_embutidos = base(
+        in_followup = base(
             self.db.query(func.count(Restaurant.id)).filter(
-                Restaurant.tiene_embutidos == True  # noqa: E712
+                Restaurant.status.in_(["contactado", "interesado"])
             )
         ).scalar() or 0
 
+        worked = base(
+            self.db.query(func.count(Restaurant.id)).filter(
+                Restaurant.status.in_(["contactado", "interesado", "cliente", "no_interesado"])
+            )
+        ).scalar() or 0
+        conversion_rate = round((clients_count / worked * 100), 1) if worked > 0 else 0.0
+
+        start_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        new_clients_month = (
+            base(
+                self.db.query(func.count(RestaurantStatusChange.id))
+                .filter(
+                    RestaurantStatusChange.new_status == "cliente",
+                    RestaurantStatusChange.changed_at >= start_of_month,
+                )
+            ).scalar() or 0
+        )
+
         to_contact = (
             self._fuente_filter(
-                self.db.query(func.count(Restaurant.id)).join(RestaurantMLScore),
+                self.db.query(func.count(Restaurant.id)).join(RestaurantScore),
                 fuente,
             ).filter(
                 Restaurant.status == "nuevo",
-                RestaurantMLScore.composite_score >= 60,
+                RestaurantScore.total_score >= 80,
             ).scalar() or 0
         )
 
@@ -104,7 +122,9 @@ class DashboardService:
             "avg_rating": round(float(avg_rating), 2) if avg_rating else None,
             "high_affinity_count": high_affinity,
             "clients_count": clients_count,
-            "with_embutidos_count": with_embutidos,
+            "in_followup_count": in_followup,
+            "conversion_rate": conversion_rate,
+            "new_clients_this_month": new_clients_month,
             "to_contact_count": to_contact,
             "total_with_coordinates": with_coordinates,
             "total_with_phone": with_phone,
@@ -225,7 +245,7 @@ class DashboardService:
         query = _exclude_non_prospects(query)
         rows = (
             query
-            .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
+            .order_by(RestaurantScore.total_score.desc())
             .limit(limit)
             .all()
         )

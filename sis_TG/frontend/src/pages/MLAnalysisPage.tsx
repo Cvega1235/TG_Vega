@@ -5,7 +5,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer,
 } from 'recharts';
-import { getLatestRun, getClusterProfiles, getTopProspects, runMLPipeline } from '../api/ml';
+import {
+  getLatestRun, getClusterProfiles, getTopProspects, runMLPipeline,
+  getScoringWeights, updateScoringWeights,
+} from '../api/ml';
+import type { ScoringWeights } from '../api/ml';
 import { useAuth } from '../auth/AuthContext';
 import Portal from '../components/common/Portal';
 
@@ -66,6 +70,158 @@ function ClusterCard({ clusterId, size, avgRating, dominantZone, dominantCuisine
           <p className="font-bold text-gray-700 truncate">{dominantCuisine ?? '—'}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+const WEIGHT_LABELS: Record<keyof ScoringWeights, { label: string; max: number; color: string }> = {
+  w_cuisine: { label: 'Afinidad Cocina', max: 30, color: 'bg-blue-500' },
+  w_rating: { label: 'Rating', max: 20, color: 'bg-yellow-500' },
+  w_reviews: { label: 'Volumen Reseñas', max: 15, color: 'bg-green-500' },
+  w_zone: { label: 'Afinidad de Zona', max: 15, color: 'bg-purple-500' },
+  w_price: { label: 'Nivel Precio', max: 10, color: 'bg-orange-500' },
+  w_completeness: { label: 'Completitud Datos', max: 10, color: 'bg-red-500' },
+};
+
+const DEFAULT_WEIGHTS: ScoringWeights = {
+  w_cuisine: 30, w_rating: 20, w_reviews: 15,
+  w_zone: 15, w_price: 10, w_completeness: 10,
+};
+
+function ScoringWeightsPanel() {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState<ScoringWeights | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const { data: remote } = useQuery({
+    queryKey: ['scoring-weights'],
+    queryFn: getScoringWeights,
+    staleTime: Infinity,
+  });
+
+  const weights = local ?? remote ?? DEFAULT_WEIGHTS;
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  const isValid = Math.abs(total - 100) < 0.1;
+
+  const saveMutation = useMutation({
+    mutationFn: updateScoringWeights,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scoring-weights'] });
+      setLocal(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  function handleChange(key: keyof ScoringWeights, rawValue: number) {
+    setSaved(false);
+    const current = local ?? remote ?? DEFAULT_WEIGHTS;
+    const otherTotal = (Object.keys(current) as (keyof ScoringWeights)[])
+      .filter(k => k !== key)
+      .reduce((sum, k) => sum + current[k], 0);
+    // Cap so the total never exceeds 100; min 1
+    const newValue = Math.min(Math.max(1, rawValue), 100 - otherTotal);
+    setLocal({ ...current, [key]: newValue });
+  }
+
+  function handleReset() {
+    setLocal({ ...DEFAULT_WEIGHTS });
+    setSaved(false);
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          <span className="text-sm font-semibold text-gray-700">Configuración de Pesos del Scoring</span>
+        </div>
+        <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
+          <p className="text-xs text-gray-500">
+            Ajusta el peso máximo de cada variable. Los pesos deben sumar exactamente 100.
+            Los cambios se aplican al ejecutar el análisis ML.
+          </p>
+
+          <div className="space-y-3">
+            {(Object.keys(WEIGHT_LABELS) as (keyof ScoringWeights)[]).map((key) => {
+              const meta = WEIGHT_LABELS[key];
+              const val = weights[key];
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-600 w-36 shrink-0">{meta.label}</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={95}
+                    step={1}
+                    value={val}
+                    onChange={(e) => handleChange(key, Number(e.target.value))}
+                    className="flex-1 accent-primary-600"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={95}
+                    value={val}
+                    onChange={(e) => handleChange(key, Number(e.target.value))}
+                    className="w-14 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg ${isValid ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+            }`}>
+            <span>Total:</span>
+            <span className="font-bold">{total} / 100</span>
+            {!isValid && (
+              <span className="text-xs ml-1">
+                — faltan <strong>{100 - total}</strong> pts por asignar
+              </span>
+            )}
+          </div>
+
+          {saved && (
+            <p className="text-xs text-green-600 font-medium">
+              Pesos guardados correctamente. Ejecuta el análisis ML para aplicarlos.
+            </p>
+          )}
+          {saveMutation.isError && (
+            <p className="text-xs text-red-600">Error al guardar. Intenta nuevamente.</p>
+          )}
+
+          <div className="flex gap-3 justify-end pt-1">
+            <button
+              onClick={handleReset}
+              className="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Restablecer
+            </button>
+            <button
+              onClick={() => saveMutation.mutate(weights)}
+              disabled={!isValid || saveMutation.isPending}
+              className="px-4 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            >
+              {saveMutation.isPending ? 'Guardando...' : 'Guardar pesos'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -215,6 +371,9 @@ export default function MLAnalysisPage() {
         </div>
       )}
 
+      {/* Configuración de pesos — solo admin */}
+      {hasRole('admin') && <ScoringWeightsPanel />}
+
       {/* Tarjetas de segmentos */}
       {clusters && clusters.length > 0 && (
         <>
@@ -355,7 +514,7 @@ export default function MLAnalysisPage() {
                       <span className="block max-w-[140px] truncate">{p.tipo_cocina ?? '—'}</span>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 w-32 sm:w-40">
-                      <ScoreBar value={p.composite_score ?? 0} />
+                      <ScoreBar value={p.total_score ?? p.composite_score ?? 0} />
                     </td>
                   </tr>
                 ))}

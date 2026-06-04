@@ -24,6 +24,7 @@ from app.restaurants.models import (
     MLRunMetadata,
     Restaurant,
     RestaurantMLScore,
+    RestaurantScore,
 )
 from app.ml.schemas import (
     ClusterProfileResponse,
@@ -167,6 +168,10 @@ class MLService:
         self.db.commit()
         self.db.refresh(run_metadata)
 
+        # Recalcular scores heurísticos con los pesos actuales guardados en DB
+        from app.scoring.engine import calculate_all_scores
+        calculate_all_scores(self.db)
+
         # Construir respuesta
         cluster_profiles = []
         for cluster_id, profile in results["cluster_profiles"].items():
@@ -292,33 +297,35 @@ class MLService:
 
         # 1. Acciones rápidas: ya en contacto, score alto → más cerca de cerrar
         acciones_query = (
-            self.db.query(Restaurant, RestaurantMLScore)
+            self.db.query(Restaurant, RestaurantMLScore, RestaurantScore)
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .outerjoin(RestaurantScore, Restaurant.id == RestaurantScore.restaurant_id)
             .filter(Restaurant.status.in_(["contactado", "interesado"]))
         )
         acciones_query = self._exclude_non_prospects(acciones_query)
         acciones_rows = (
             acciones_query
-            .order_by(RestaurantMLScore.composite_score.desc())
+            .order_by(RestaurantScore.total_score.desc().nulls_last())
             .limit(8)
             .all()
         )
 
         # 2. Top sin contactar: status nuevo con score más alto
         sin_contactar_query = (
-            self.db.query(Restaurant, RestaurantMLScore)
+            self.db.query(Restaurant, RestaurantMLScore, RestaurantScore)
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .outerjoin(RestaurantScore, Restaurant.id == RestaurantScore.restaurant_id)
             .filter(Restaurant.status == "nuevo")
         )
         sin_contactar_query = self._exclude_non_prospects(sin_contactar_query)
         sin_contactar_rows = (
             sin_contactar_query
-            .order_by(RestaurantMLScore.composite_score.desc())
+            .order_by(RestaurantScore.total_score.desc().nulls_last())
             .limit(8)
             .all()
         )
 
-        def _prospect_dict(restaurant: Restaurant, score: RestaurantMLScore) -> dict:
+        def _prospect_dict(restaurant: Restaurant, score: RestaurantMLScore, heuristic: RestaurantScore | None) -> dict:
             return {
                 "id": restaurant.id,
                 "nombre": restaurant.nombre,
@@ -326,21 +333,22 @@ class MLService:
                 "status": restaurant.status,
                 "tipo_cocina": restaurant.tipo_cocina,
                 "rating": float(restaurant.rating) if restaurant.rating else None,
-                "composite_score": float(score.composite_score),
+                "composite_score": float(heuristic.total_score) if heuristic else float(score.composite_score),
                 "conversion_probability": float(score.conversion_probability) if score.conversion_probability else None,
             }
 
-        # 3. Zonas con más oportunidad: prospectos de calidad (score ≥ 0.6) por zona
+        # 3. Zonas con más oportunidad: prospectos de calidad (score ≥ 60) por zona
         zona_rows = (
             self.db.query(
                 Restaurant.zona,
                 func.count(Restaurant.id).label("total"),
-                func.avg(RestaurantMLScore.composite_score).label("avg_score"),
+                func.avg(RestaurantScore.total_score).label("avg_score"),
             )
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .outerjoin(RestaurantScore, Restaurant.id == RestaurantScore.restaurant_id)
             .filter(
                 Restaurant.status.notin_(["cliente", "no_interesado"]),
-                RestaurantMLScore.composite_score >= 0.6,
+                RestaurantScore.total_score >= 60,
                 Restaurant.zona.isnot(None),
             )
             .group_by(Restaurant.zona)
@@ -380,8 +388,8 @@ class MLService:
         )[:5]
 
         return {
-            "acciones_rapidas": [_prospect_dict(r, s) for r, s in acciones_rows],
-            "top_sin_contactar": [_prospect_dict(r, s) for r, s in sin_contactar_rows],
+            "acciones_rapidas": [_prospect_dict(r, s, h) for r, s, h in acciones_rows],
+            "top_sin_contactar": [_prospect_dict(r, s, h) for r, s, h in sin_contactar_rows],
             "zonas_oportunidad": [
                 {
                     "zona": row.zona,
@@ -440,26 +448,24 @@ class MLService:
         return query.filter(~or_(*conditions))
 
     def get_top_prospects(self, limit: int = 20, include_clients: bool = False) -> list[TopProspectResponse]:
-        """Obtiene los top prospectos por score compuesto."""
+        """Obtiene los top prospectos ordenados por score heurístico (pesos configurables)."""
         query = (
-            self.db.query(Restaurant, RestaurantMLScore)
-            .join(
-                RestaurantMLScore,
-                Restaurant.id == RestaurantMLScore.restaurant_id,
-            )
+            self.db.query(Restaurant, RestaurantMLScore, RestaurantScore)
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .outerjoin(RestaurantScore, Restaurant.id == RestaurantScore.restaurant_id)
         )
         if not include_clients:
             query = query.filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
         query = self._exclude_non_prospects(query)
         results = (
             query
-            .order_by(RestaurantMLScore.composite_score.desc())
+            .order_by(RestaurantScore.total_score.desc().nulls_last())
             .limit(limit)
             .all()
         )
 
         prospects = []
-        for restaurant, ml_score in results:
+        for restaurant, ml_score, heuristic_score in results:
             prospects.append(
                 TopProspectResponse(
                     id=restaurant.id,
@@ -472,6 +478,7 @@ class MLService:
                     cluster_id=ml_score.cluster_id,
                     icp_similarity=float(ml_score.icp_similarity),
                     composite_score=float(ml_score.composite_score),
+                    total_score=float(heuristic_score.total_score) if heuristic_score else None,
                 )
             )
 

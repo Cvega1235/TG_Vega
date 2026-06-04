@@ -47,4 +47,5 @@ export interface TopProspect {
   cluster_id: number | null;
   icp_similarity: number | null;
   composite_score: number | null;
+  total_score: number | null;
 }

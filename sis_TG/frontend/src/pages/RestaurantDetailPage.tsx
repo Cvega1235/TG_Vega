@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { getRestaurant, getNotes, getHistory, addNote, updateRestaurantStatus } from '../api/restaurants';
+import { getScoringWeights } from '../api/ml';
 import StatusBadge from '../components/common/StatusBadge';
 import ContactEmailModal from '../components/emails/ContactEmailModal';
 import { ALL_STATUSES, STATUS_LABELS } from '../utils/constants';
@@ -29,6 +30,12 @@ export default function RestaurantDetailPage() {
   const { data: history } = useQuery({
     queryKey: ['history', restaurantId],
     queryFn: () => getHistory(restaurantId),
+  });
+
+  const { data: weights } = useQuery({
+    queryKey: ['scoring-weights'],
+    queryFn: getScoringWeights,
+    staleTime: Infinity,
   });
 
   const statusMutation = useMutation({
@@ -146,12 +153,12 @@ export default function RestaurantDetailPage() {
                   )}
                 </div>
               </div>
-              <ScoreBar label="Afinidad Cocina" value={score.cuisine_score} max={30} color="bg-blue-500" />
-              <ScoreBar label="Rating" value={score.rating_score} max={20} color="bg-yellow-500" />
-              <ScoreBar label="Volumen Resenas" value={score.reviews_score} max={15} color="bg-green-500" />
-              <ScoreBar label="Zona Premium" value={score.zone_score} max={15} color="bg-purple-500" />
-              <ScoreBar label="Nivel Precio" value={score.price_score} max={10} color="bg-orange-500" />
-              <ScoreBar label="Completitud Datos" value={score.completeness_score} max={10} color="bg-red-500" />
+              <ScoreBar label="Afinidad Cocina" value={score.cuisine_score} max={weights?.w_cuisine ?? 30} color="bg-blue-500" />
+              <ScoreBar label="Rating" value={score.rating_score} max={weights?.w_rating ?? 20} color="bg-yellow-500" />
+              <ScoreBar label="Volumen Resenas" value={score.reviews_score} max={weights?.w_reviews ?? 15} color="bg-green-500" />
+              <ScoreBar label="Zona Premium" value={score.zone_score} max={weights?.w_zone ?? 15} color="bg-purple-500" />
+              <ScoreBar label="Nivel Precio" value={score.price_score} max={weights?.w_price ?? 10} color="bg-orange-500" />
+              <ScoreBar label="Completitud Datos" value={score.completeness_score} max={weights?.w_completeness ?? 10} color="bg-red-500" />
               {score.conversion_probability != null && (
                 <div className="mt-4 pt-3 border-t border-gray-100">
                   <div className="flex items-center justify-between">

@@ -3,7 +3,9 @@ export interface DashboardStats {
   avg_rating: number | null;
   high_affinity_count: number;
   clients_count: number;
-  with_embutidos_count: number;
+  in_followup_count: number;
+  conversion_rate: number;
+  new_clients_this_month: number;
   to_contact_count: number;
   total_with_coordinates: number;
   total_with_phone: number;

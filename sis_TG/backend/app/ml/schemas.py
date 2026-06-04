@@ -91,5 +91,6 @@ class TopProspectResponse(BaseModel):
     cluster_id: int | None = None
     icp_similarity: float | None = None
     composite_score: float | None = None
+    total_score: float | None = None
 
     model_config = {"from_attributes": True}

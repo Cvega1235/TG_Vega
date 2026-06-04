@@ -8,77 +8,72 @@ from app.scoring.config import (
     CUISINE_AFFINITY, ZONE_SCORES, PRICE_SCORES,
     DEFAULT_ZONE_SCORE, DEFAULT_PRICE_SCORE, DEFAULT_CUISINE_AFFINITY,
 )
+from app.scoring.schemas import ScoringWeights, DEFAULT_WEIGHTS
 
 
-def _cuisine_affinity_score(tipo_cocina: str | None, categoria: str | None) -> float:
-    """Score 0-30 based on how much the cuisine uses embutidos."""
+def _cuisine_affinity_score(tipo_cocina: str | None, categoria: str | None, max_score: float = 30.0) -> float:
     max_affinity = DEFAULT_CUISINE_AFFINITY
-
     texts = []
     if tipo_cocina:
         texts.append(tipo_cocina.lower())
     if categoria:
         texts.append(categoria.lower())
-
     combined = " ".join(texts)
     for keyword, affinity in CUISINE_AFFINITY.items():
         if keyword in combined:
             max_affinity = max(max_affinity, affinity)
+    return round(max_affinity * max_score, 2)
 
-    return round(max_affinity * 30.0, 2)
 
-
-def _rating_score(rating: float | None) -> float:
-    """Score 0-20 based on restaurant rating."""
+def _rating_score(rating: float | None, max_score: float = 20.0) -> float:
+    scale = max_score / 20.0
     if rating is None:
-        return 10.0
+        return round(10.0 * scale, 2)
     if rating >= 4.5:
-        return 20.0
+        return round(20.0 * scale, 2)
     elif rating >= 4.0:
-        return 17.0
+        return round(17.0 * scale, 2)
     elif rating >= 3.5:
-        return 13.0
+        return round(13.0 * scale, 2)
     elif rating >= 3.0:
-        return 9.0
+        return round(9.0 * scale, 2)
     elif rating >= 2.0:
-        return 5.0
+        return round(5.0 * scale, 2)
     else:
-        return 2.0
+        return round(2.0 * scale, 2)
 
 
-def _reviews_score(num_resenas: int | None) -> float:
-    """Score 0-15 based on review volume (logarithmic)."""
+def _reviews_score(num_resenas: int | None, max_score: float = 15.0) -> float:
     if num_resenas is None or num_resenas == 0:
-        return 3.0
+        return round(3.0 * (max_score / 15.0), 2)
     raw = math.log10(num_resenas + 1) / math.log10(1001)
-    return round(min(raw * 15.0, 15.0), 2)
+    return round(min(raw * max_score, max_score), 2)
 
 
-def _zone_score(zona: str | None, direccion: str | None) -> float:
-    """Score 0-15 based on neighborhood economic profile."""
+def _zone_score(zona: str | None, direccion: str | None, max_score: float = 15.0) -> float:
+    scale = max_score / 15.0
     if zona:
         for zone_name, score in ZONE_SCORES.items():
             if zone_name.lower() in zona.lower():
-                return score
-
+                return round(score * scale, 2)
     if direccion:
         dir_lower = direccion.lower()
         for zone_name, score in ZONE_SCORES.items():
             if zone_name.lower() in dir_lower:
-                return score
+                return round(score * scale, 2)
+    return round(DEFAULT_ZONE_SCORE * scale, 2)
 
-    return DEFAULT_ZONE_SCORE
 
-
-def _price_score(precio: str | None) -> float:
-    """Score 0-10 based on price level."""
+def _price_score(precio: str | None, max_score: float = 10.0) -> float:
+    scale = max_score / 10.0
     if precio is None:
-        return DEFAULT_PRICE_SCORE
-    return PRICE_SCORES.get(precio.strip(), DEFAULT_PRICE_SCORE)
+        return round(DEFAULT_PRICE_SCORE * scale, 2)
+    raw = PRICE_SCORES.get(precio.strip(), DEFAULT_PRICE_SCORE)
+    return round(raw * scale, 2)
 
 
-def _completeness_score(restaurant: Restaurant) -> float:
-    """Score 0-10 based on data completeness (ease of contact)."""
+def _completeness_score(restaurant: Restaurant, max_score: float = 10.0) -> float:
+    scale = max_score / 10.0
     score = 0.0
     if restaurant.telefono:
         score += 3.0
@@ -92,20 +87,18 @@ def _completeness_score(restaurant: Restaurant) -> float:
         score += 1.0
     if restaurant.num_resenas and restaurant.num_resenas > 0:
         score += 1.0
-    return score
+    return round(score * scale, 2)
 
 
-def compute_score(restaurant: Restaurant) -> dict:
-    """Compute client potential score (0-100) for a restaurant."""
-    cs = _cuisine_affinity_score(restaurant.tipo_cocina, restaurant.categoria)
-    rs = _rating_score(float(restaurant.rating) if restaurant.rating is not None else None)
-    rv = _reviews_score(restaurant.num_resenas)
-    zs = _zone_score(restaurant.zona, restaurant.direccion)
-    ps = _price_score(restaurant.precio)
-    ds = _completeness_score(restaurant)
-
+def compute_score(restaurant: Restaurant, weights: ScoringWeights | None = None) -> dict:
+    w = weights or DEFAULT_WEIGHTS
+    cs = _cuisine_affinity_score(restaurant.tipo_cocina, restaurant.categoria, w.w_cuisine)
+    rs = _rating_score(float(restaurant.rating) if restaurant.rating is not None else None, w.w_rating)
+    rv = _reviews_score(restaurant.num_resenas, w.w_reviews)
+    zs = _zone_score(restaurant.zona, restaurant.direccion, w.w_zone)
+    ps = _price_score(restaurant.precio, w.w_price)
+    ds = _completeness_score(restaurant, w.w_completeness)
     total = cs + rs + rv + zs + ps + ds
-
     return {
         "total_score": round(total, 2),
         "cuisine_score": cs,
@@ -118,19 +111,31 @@ def compute_score(restaurant: Restaurant) -> dict:
 
 
 def calculate_all_scores(db: Session) -> int:
-    """Recalculate scores for all restaurants. Returns count."""
+    from app.scoring.models import ScoringWeightsConfig
+    from app.scoring.schemas import ScoringWeights
+
+    cfg = db.query(ScoringWeightsConfig).filter_by(id=1).first()
+    weights = None
+    if cfg:
+        weights = ScoringWeights(
+            w_cuisine=cfg.w_cuisine,
+            w_rating=cfg.w_rating,
+            w_reviews=cfg.w_reviews,
+            w_zone=cfg.w_zone,
+            w_price=cfg.w_price,
+            w_completeness=cfg.w_completeness,
+        )
+
     restaurants = db.query(Restaurant).all()
     count = 0
 
     for restaurant in restaurants:
-        scores = compute_score(restaurant)
-
+        scores = compute_score(restaurant, weights)
         existing = (
             db.query(RestaurantScore)
             .filter(RestaurantScore.restaurant_id == restaurant.id)
             .first()
         )
-
         if existing:
             for key, value in scores.items():
                 setattr(existing, key, value)
@@ -142,7 +147,6 @@ def calculate_all_scores(db: Session) -> int:
                 **scores,
             )
             db.add(score_obj)
-
         count += 1
 
     db.commit()
