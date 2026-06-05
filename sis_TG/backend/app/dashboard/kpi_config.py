@@ -28,7 +28,6 @@ PRODUCT_DETAILS = [
 ]
 
 # Expected monthly revenue per active client = Σ (price × consumption × adoption_rate)
-# This is the weighted-average spend across all products a typical client buys.
 AVG_MONTHLY_REVENUE_PER_CLIENT: float = round(
     sum(price * consumption * adoption for _, price, consumption, adoption in _PRODUCTS),
     2,
@@ -36,13 +35,10 @@ AVG_MONTHLY_REVENUE_PER_CLIENT: float = round(
 
 # Traffic light thresholds
 THRESHOLDS = {
-    # Estimated total monthly revenue (Bs)
     "revenue_green":      150_000.0,
     "revenue_yellow":      75_000.0,
-    # Cumulative active clients
     "clients_green":  30,
     "clients_yellow": 15,
-    # New clients in a given month
     "new_clients_green":  5,
     "new_clients_yellow": 2,
 }

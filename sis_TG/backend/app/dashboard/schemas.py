@@ -91,3 +91,21 @@ class RecentSummary(BaseModel):
     new_high_score_prospects: int
     new_clients: int
     last_scraped_at: str | None = None
+
+
+class MonthlyKpiPoint(BaseModel):
+    month: str
+    label: str
+    new_clients: int
+    lost_clients: int
+    cumulative_clients: int
+    estimated_revenue: float
+    traffic_clients: str
+    traffic_revenue: str
+
+
+class KpiEvolutionData(BaseModel):
+    monthly: list[MonthlyKpiPoint]
+    avg_revenue_per_client: float
+    thresholds: dict[str, float]
+    product_details: list[dict]

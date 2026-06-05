@@ -6,7 +6,7 @@ from app.auth.dependencies import require_role
 from app.users.models import User
 from app.dashboard.schemas import (
     DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspectItem,
-    ClientHistoryData, RecentSummary,
+    ClientHistoryData, RecentSummary, KpiEvolutionData,
 )
 from app.dashboard.service import DashboardService
 from app.scoring.engine import calculate_all_scores
@@ -119,6 +119,15 @@ def get_recent_summary(
 ):
     service = DashboardService(db)
     return service.get_recent_summary(days)
+
+
+@router.get("/kpi-evolution", response_model=KpiEvolutionData)
+def get_kpi_evolution(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    service = DashboardService(db)
+    return service.get_kpi_evolution()
 
 
 @router.post("/recalculate-scores")

@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Generar con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     ENCRYPTION_KEY: str = ""
 
+    # Clave para descifrar datos de recetas (recipes.enc)
+    RECIPE_KEY: str = ""
+
     # Bloqueo de cuenta por intentos fallidos
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 30

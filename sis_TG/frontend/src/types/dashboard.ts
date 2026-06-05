@@ -70,6 +70,30 @@ export interface RecentSummary {
   last_scraped_at: string | null;
 }
 
+export interface MonthlyKpiPoint {
+  month: string;
+  label: string;
+  new_clients: number;
+  lost_clients: number;
+  cumulative_clients: number;
+  estimated_revenue: number;
+  traffic_clients: 'green' | 'yellow' | 'red';
+  traffic_revenue: 'green' | 'yellow' | 'red';
+}
+
+export interface KpiEvolutionData {
+  monthly: MonthlyKpiPoint[];
+  avg_revenue_per_client: number;
+  thresholds: Record<string, number>;
+  product_details: Array<{
+    nombre: string;
+    precio_bs_kg: number;
+    consumo_kg_mes: number;
+    adopcion: number;
+    ingreso_esperado_por_cliente: number;
+  }>;
+}
+
 export interface TopProspect {
   id: number;
   nombre: string;

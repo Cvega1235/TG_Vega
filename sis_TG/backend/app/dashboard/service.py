@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
 from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore, RestaurantStatusChange
+from app.dashboard.kpi_config import AVG_MONTHLY_REVENUE_PER_CLIENT, THRESHOLDS, PRODUCT_DETAILS
 
 _EXCLUDED_CATEGORIES = [
     "panaderia", "panadería",
@@ -340,6 +341,100 @@ class DashboardService:
             "recent_conversions": recent_conversions,
             "total_clients": total_clients,
             "new_this_month": new_this_month,
+        }
+
+    def get_kpi_evolution(self) -> dict:
+        start_date = datetime.now(timezone.utc) - timedelta(days=365 * 3)
+
+        # Primeras conversiones a "cliente" por mes
+        first_conversion = (
+            self.db.query(
+                RestaurantStatusChange.restaurant_id,
+                func.min(RestaurantStatusChange.changed_at).label("first_at"),
+            )
+            .filter(RestaurantStatusChange.new_status == "cliente")
+            .group_by(RestaurantStatusChange.restaurant_id)
+            .subquery()
+        )
+
+        gained_rows = (
+            self.db.query(
+                func.date_trunc("month", first_conversion.c.first_at).label("month"),
+                func.count().label("new_clients"),
+            )
+            .filter(first_conversion.c.first_at >= start_date)
+            .group_by("month")
+            .order_by("month")
+            .all()
+        )
+
+        # Restaurantes que alguna vez fueron clientes
+        ever_client = (
+            self.db.query(RestaurantStatusChange.restaurant_id)
+            .filter(RestaurantStatusChange.new_status == "cliente")
+            .subquery()
+        )
+
+        # Pérdidas: pasaron a no_interesado habiendo sido clientes antes
+        lost_rows = (
+            self.db.query(
+                func.date_trunc("month", RestaurantStatusChange.changed_at).label("month"),
+                func.count().label("lost_clients"),
+            )
+            .filter(
+                RestaurantStatusChange.new_status == "no_interesado",
+                RestaurantStatusChange.changed_at >= start_date,
+                RestaurantStatusChange.restaurant_id.in_(ever_client),
+            )
+            .group_by("month")
+            .order_by("month")
+            .all()
+        )
+
+        lost_by_month = {row.month: row.lost_clients for row in lost_rows}
+
+        # Combinar meses de ambas queries
+        all_months = sorted(set(
+            [row.month for row in gained_rows] + list(lost_by_month.keys())
+        ))
+
+        gained_by_month = {row.month: row.new_clients for row in gained_rows}
+
+        cumulative = 0
+        monthly = []
+        for month_dt in all_months:
+            new_clients = gained_by_month.get(month_dt, 0)
+            lost_clients = lost_by_month.get(month_dt, 0)
+            cumulative = cumulative + new_clients - lost_clients
+            estimated_revenue = round(cumulative * AVG_MONTHLY_REVENUE_PER_CLIENT, 2)
+
+            traffic_clients = (
+                "green" if cumulative >= THRESHOLDS["clients_green"]
+                else "yellow" if cumulative >= THRESHOLDS["clients_yellow"]
+                else "red"
+            )
+            traffic_revenue = (
+                "green" if estimated_revenue >= THRESHOLDS["revenue_green"]
+                else "yellow" if estimated_revenue >= THRESHOLDS["revenue_yellow"]
+                else "red"
+            )
+
+            monthly.append({
+                "month": month_dt.strftime("%Y-%m"),
+                "label": month_dt.strftime("%b %Y"),
+                "new_clients": new_clients,
+                "lost_clients": lost_clients,
+                "cumulative_clients": cumulative,
+                "estimated_revenue": estimated_revenue,
+                "traffic_clients": traffic_clients,
+                "traffic_revenue": traffic_revenue,
+            })
+
+        return {
+            "monthly": monthly,
+            "avg_revenue_per_client": AVG_MONTHLY_REVENUE_PER_CLIENT,
+            "thresholds": THRESHOLDS,
+            "product_details": PRODUCT_DETAILS,
         }
 
     def get_recent_summary(self, days: int = 30) -> dict:
