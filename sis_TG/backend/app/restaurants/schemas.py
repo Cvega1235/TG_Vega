@@ -20,6 +20,7 @@ class RestaurantResponse(BaseModel):
     servicios: str | None = None
     zona: str | None = None
     status: str
+    monthly_revenue: float | None = None
     scraped_at: datetime | None = None
     tiene_embutidos: bool | None = None
     productos_detectados: str | None = None
@@ -57,6 +58,11 @@ class RestaurantUpdate(BaseModel):
 
 class StatusUpdate(BaseModel):
     status: str
+    monthly_revenue: float | None = None
+
+
+class RevenueUpdate(BaseModel):
+    monthly_revenue: float
 
 
 class NoteCreate(BaseModel):

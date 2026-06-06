@@ -109,3 +109,4 @@ class KpiEvolutionData(BaseModel):
     avg_revenue_per_client: float
     thresholds: dict[str, float]
     product_details: list[dict]
+    actual_total_revenue: float | None = None

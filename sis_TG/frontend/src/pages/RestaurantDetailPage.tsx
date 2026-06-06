@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import { getRestaurant, getNotes, getHistory, addNote, updateRestaurantStatus } from '../api/restaurants';
+import { getRestaurant, getNotes, getHistory, addNote, updateRestaurantStatus, updateRestaurantRevenue } from '../api/restaurants';
 import { getScoringWeights } from '../api/ml';
 import StatusBadge from '../components/common/StatusBadge';
 import ContactEmailModal from '../components/emails/ContactEmailModal';
@@ -16,6 +16,11 @@ export default function RestaurantDetailPage() {
   const { hasRole } = useAuth();
   const [noteContent, setNoteContent] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [revenueModalOpen, setRevenueModalOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [pendingRevenue, setPendingRevenue] = useState('');
+  const [editingRevenue, setEditingRevenue] = useState(false);
+  const [editRevenueValue, setEditRevenueValue] = useState('');
 
   const { data: restaurant, isLoading } = useQuery({
     queryKey: ['restaurant', restaurantId],
@@ -39,10 +44,21 @@ export default function RestaurantDetailPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: string) => updateRestaurantStatus(restaurantId, status),
+    mutationFn: ({ status, monthly_revenue }: { status: string; monthly_revenue?: number }) =>
+      updateRestaurantStatus(restaurantId, status, monthly_revenue),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurant', restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['history', restaurantId] });
+      queryClient.invalidateQueries({ queryKey: ['kpiEvolution'] });
+    },
+  });
+
+  const revenueMutation = useMutation({
+    mutationFn: (monthly_revenue: number) => updateRestaurantRevenue(restaurantId, monthly_revenue),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['restaurant', restaurantId] });
+      queryClient.invalidateQueries({ queryKey: ['kpiEvolution'] });
+      setEditingRevenue(false);
     },
   });
 
@@ -92,7 +108,16 @@ export default function RestaurantDetailPage() {
             {hasRole('analista') && (
               <select
                 value={restaurant.status}
-                onChange={(e) => statusMutation.mutate(e.target.value)}
+                onChange={(e) => {
+                  const newStatus = e.target.value;
+                  if (newStatus === 'cliente' && restaurant.status !== 'cliente') {
+                    setPendingStatus(newStatus);
+                    setPendingRevenue('');
+                    setRevenueModalOpen(true);
+                  } else {
+                    statusMutation.mutate({ status: newStatus });
+                  }
+                }}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
               >
                 {ALL_STATUSES.map((s) => (
@@ -270,12 +295,129 @@ export default function RestaurantDetailPage() {
         </div>
       </div>
 
+      {/* Revenue card — only for active clients */}
+      {restaurant.status === 'cliente' && hasRole('analista') && (
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-700">Ingresos del Cliente</h3>
+            {!editingRevenue && (
+              <button
+                onClick={() => {
+                  setEditRevenueValue(restaurant.monthly_revenue?.toString() ?? '');
+                  setEditingRevenue(true);
+                }}
+                className="text-xs text-primary-600 hover:underline"
+              >
+                Editar
+              </button>
+            )}
+          </div>
+          {editingRevenue ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={editRevenueValue}
+                onChange={(e) => setEditRevenueValue(e.target.value)}
+                placeholder="Ingreso mensual en Bs"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+              <button
+                onClick={() => {
+                  const val = parseFloat(editRevenueValue);
+                  if (!isNaN(val) && val >= 0) revenueMutation.mutate(val);
+                }}
+                disabled={revenueMutation.isPending || !editRevenueValue}
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={() => setEditingRevenue(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-3xl font-bold text-gray-800 tabular-nums">
+                {restaurant.monthly_revenue != null
+                  ? `${restaurant.monthly_revenue.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs`
+                  : <span className="text-gray-400 text-base font-normal">Sin valor registrado</span>
+                }
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {restaurant.monthly_revenue != null ? 'Ingreso mensual estimado / real' : 'No se ha ingresado aún'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {showEmailModal && (
         <ContactEmailModal
           restaurantId={restaurantId}
           restaurantName={restaurant.nombre}
           onClose={() => setShowEmailModal(false)}
         />
+      )}
+
+      {/* Revenue modal — shown when converting a restaurant to 'cliente' */}
+      {revenueModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-1">Nuevo cliente</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Ingresa el ingreso mensual estimado para <span className="font-medium">{restaurant.nombre}</span>.
+            </p>
+            <label className="block text-sm text-gray-600 mb-1">Ingreso mensual (Bs)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={pendingRevenue}
+              onChange={(e) => setPendingRevenue(e.target.value)}
+              placeholder="Ej: 5900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && pendingRevenue) {
+                  const rev = parseFloat(pendingRevenue);
+                  if (!isNaN(rev) && rev >= 0 && pendingStatus) {
+                    statusMutation.mutate({ status: pendingStatus, monthly_revenue: rev });
+                    setRevenueModalOpen(false);
+                  }
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setRevenueModalOpen(false);
+                  setPendingStatus(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const rev = parseFloat(pendingRevenue);
+                  if (!isNaN(rev) && rev >= 0 && pendingStatus) {
+                    statusMutation.mutate({ status: pendingStatus, monthly_revenue: rev });
+                    setRevenueModalOpen(false);
+                  }
+                }}
+                disabled={!pendingRevenue || isNaN(parseFloat(pendingRevenue))}
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

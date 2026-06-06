@@ -44,6 +44,7 @@ class Restaurant(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="nuevo"
     )
+    monthly_revenue: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     scraped_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

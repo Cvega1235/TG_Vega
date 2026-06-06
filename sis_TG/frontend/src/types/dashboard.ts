@@ -92,6 +92,7 @@ export interface KpiEvolutionData {
     adopcion: number;
     ingreso_esperado_por_cliente: number;
   }>;
+  actual_total_revenue: number | null;
 }
 
 export interface TopProspect {

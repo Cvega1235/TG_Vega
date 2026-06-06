@@ -290,15 +290,31 @@ export default function KpiEvolutionSection({ data }: Props) {
           thresholdYellow={data.thresholds.clients_yellow}
           formatFn={(v) => `${v} clientes`}
         />
-        <SummaryCard
-          label="Ingreso estimado mensual"
-          value={formatRevenue(lastPoint.estimated_revenue)}
-          sub="basado en clientes activos"
-          traffic={lastPoint.traffic_revenue}
-          thresholdGreen={data.thresholds.revenue_green}
-          thresholdYellow={data.thresholds.revenue_yellow}
-          formatFn={formatRevenue}
-        />
+        {data.actual_total_revenue != null ? (
+          <SummaryCard
+            label="Ingreso mensual real"
+            value={formatRevenue(data.actual_total_revenue)}
+            sub="suma de ingresos de clientes activos"
+            traffic={
+              data.actual_total_revenue >= data.thresholds.revenue_green ? 'green'
+              : data.actual_total_revenue >= data.thresholds.revenue_yellow ? 'yellow'
+              : 'red'
+            }
+            thresholdGreen={data.thresholds.revenue_green}
+            thresholdYellow={data.thresholds.revenue_yellow}
+            formatFn={formatRevenue}
+          />
+        ) : (
+          <SummaryCard
+            label="Ingreso estimado mensual"
+            value={formatRevenue(lastPoint.estimated_revenue)}
+            sub="basado en clientes activos"
+            traffic={lastPoint.traffic_revenue}
+            thresholdGreen={data.thresholds.revenue_green}
+            thresholdYellow={data.thresholds.revenue_yellow}
+            formatFn={formatRevenue}
+          />
+        )}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-xs text-gray-500 mb-1">Ingreso promedio por cliente</p>
           <p className="text-xl font-bold text-gray-800">

@@ -22,6 +22,7 @@ export interface Restaurant {
   servicios: string | null;
   zona: string | null;
   status: RestaurantStatus;
+  monthly_revenue: number | null;
   scraped_at: string | null;
   created_at: string;
   updated_at: string;

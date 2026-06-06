@@ -123,7 +123,9 @@ class RestaurantService:
         self.db.refresh(restaurant)
         return restaurant
 
-    def change_status(self, restaurant_id: int, new_status: str, user: User) -> Restaurant:
+    def change_status(
+        self, restaurant_id: int, new_status: str, user: User, monthly_revenue: float | None = None
+    ) -> Restaurant:
         if new_status not in VALID_STATUSES:
             raise HTTPException(status_code=400, detail=f"Estado invalido: {new_status}")
 
@@ -134,6 +136,9 @@ class RestaurantService:
         old_status = restaurant.status
         restaurant.status = new_status
 
+        if new_status == "cliente" and monthly_revenue is not None:
+            restaurant.monthly_revenue = monthly_revenue
+
         change = RestaurantStatusChange(
             restaurant_id=restaurant_id,
             user_id=user.id,
@@ -141,6 +146,15 @@ class RestaurantService:
             new_status=new_status,
         )
         self.db.add(change)
+        self.db.commit()
+        self.db.refresh(restaurant)
+        return restaurant
+
+    def update_revenue(self, restaurant_id: int, monthly_revenue: float) -> Restaurant:
+        restaurant = self.db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+        if restaurant is None:
+            raise HTTPException(status_code=404, detail="Restaurante no encontrado")
+        restaurant.monthly_revenue = monthly_revenue
         self.db.commit()
         self.db.refresh(restaurant)
         return restaurant

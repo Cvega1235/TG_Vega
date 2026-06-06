@@ -430,11 +430,21 @@ class DashboardService:
                 "traffic_revenue": traffic_revenue,
             })
 
+        actual_total_revenue = (
+            self.db.query(func.sum(Restaurant.monthly_revenue))
+            .filter(
+                Restaurant.status == "cliente",
+                Restaurant.monthly_revenue.isnot(None),
+            )
+            .scalar()
+        )
+
         return {
             "monthly": monthly,
             "avg_revenue_per_client": AVG_MONTHLY_REVENUE_PER_CLIENT,
             "thresholds": THRESHOLDS,
             "product_details": PRODUCT_DETAILS,
+            "actual_total_revenue": float(actual_total_revenue) if actual_total_revenue else None,
         }
 
     def get_recent_summary(self, days: int = 30) -> dict:

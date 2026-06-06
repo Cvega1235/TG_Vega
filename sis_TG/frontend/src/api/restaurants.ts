@@ -14,8 +14,20 @@ export async function getRestaurant(id: number): Promise<Restaurant> {
   return res.data;
 }
 
-export async function updateRestaurantStatus(id: number, status: string): Promise<Restaurant> {
-  const res = await apiClient.put<Restaurant>(`/restaurants/${id}/status`, { status });
+export async function updateRestaurantStatus(
+  id: number,
+  status: string,
+  monthly_revenue?: number,
+): Promise<Restaurant> {
+  const res = await apiClient.put<Restaurant>(`/restaurants/${id}/status`, {
+    status,
+    ...(monthly_revenue !== undefined ? { monthly_revenue } : {}),
+  });
+  return res.data;
+}
+
+export async function updateRestaurantRevenue(id: number, monthly_revenue: number): Promise<Restaurant> {
+  const res = await apiClient.put<Restaurant>(`/restaurants/${id}/revenue`, { monthly_revenue });
   return res.data;
 }
 

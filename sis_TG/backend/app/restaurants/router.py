@@ -7,7 +7,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.users.models import User
 from pydantic import BaseModel
 from app.restaurants.schemas import (
-    RestaurantWithScore, RestaurantUpdate, StatusUpdate,
+    RestaurantWithScore, RestaurantUpdate, StatusUpdate, RevenueUpdate,
     NoteCreate, NoteResponse, StatusChangeResponse,
     PaginatedRestaurants,
 )
@@ -145,7 +145,18 @@ def change_status(
     current_user: User = Depends(require_role("analista")),
 ):
     service = RestaurantService(db)
-    return service.change_status(restaurant_id, data.status, current_user)
+    return service.change_status(restaurant_id, data.status, current_user, data.monthly_revenue)
+
+
+@router.put("/{restaurant_id}/revenue", response_model=RestaurantWithScore)
+def update_revenue(
+    restaurant_id: int,
+    data: RevenueUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("analista")),
+):
+    service = RestaurantService(db)
+    return service.update_revenue(restaurant_id, data.monthly_revenue)
 
 
 @router.post("/{restaurant_id}/notes", response_model=NoteResponse, status_code=201)
