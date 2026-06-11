@@ -99,6 +99,8 @@ class MonthlyKpiPoint(BaseModel):
     new_clients: int
     lost_clients: int
     cumulative_clients: int
+    revenue_gained: float
+    revenue_lost: float
     estimated_revenue: float
     traffic_clients: str
     traffic_revenue: str
@@ -110,3 +112,24 @@ class KpiEvolutionData(BaseModel):
     thresholds: dict[str, float]
     product_details: list[dict]
     actual_total_revenue: float | None = None
+
+
+class KpiSettingsData(BaseModel):
+    revenue_green: float
+    revenue_yellow: float
+    clients_green: int
+    clients_yellow: int
+    new_clients_green: int
+    new_clients_yellow: int
+    max_clients: int
+    max_kg_day: float
+
+
+class ClientByMonth(BaseModel):
+    id: int
+    nombre: str
+    zona: str | None = None
+    tipo_cocina: str | None = None
+    telefono: str | None = None
+    monthly_revenue: float | None = None
+    converted_at: str

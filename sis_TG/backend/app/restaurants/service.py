@@ -1,11 +1,12 @@
 import difflib
 import math
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import and_, func, or_
 from fastapi import HTTPException
 
 from app.restaurants.models import (
     Restaurant, RestaurantNote, RestaurantStatusChange, RestaurantScore,
+    RestaurantMLScore,
 )
 from app.users.models import User
 
@@ -35,7 +36,11 @@ class RestaurantService:
         min_score: float | None = None,
         prospecto: bool | None = None,
     ) -> dict:
-        query = self.db.query(Restaurant).outerjoin(RestaurantScore)
+        query = (
+            self.db.query(Restaurant)
+            .outerjoin(RestaurantScore)
+            .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+        )
 
         if fuente:
             query = query.filter(Restaurant.fuente == fuente)
@@ -68,11 +73,25 @@ class RestaurantService:
             query = query.filter(
                 Restaurant.status.notin_(["cliente", "no_interesado"])
             )
+            _excluded = [
+                "panaderia", "panadería", "heladeria", "heladería",
+                "chocolateria", "chocolatería", "dulceria", "dulcería",
+                "fruteria", "frutería", "jugos", "smoothie",
+                "creperia", "crepería", "postres",
+            ]
+            conditions = []
+            for cat in _excluded:
+                conditions.append(and_(Restaurant.categoria.isnot(None), func.lower(Restaurant.categoria).contains(cat)))
+                conditions.append(and_(Restaurant.tipo_cocina.isnot(None), func.lower(Restaurant.tipo_cocina).contains(cat)))
+                conditions.append(func.lower(Restaurant.nombre).contains(cat))
+            query = query.filter(~or_(*conditions))
 
         # Sorting
         sort_column = getattr(Restaurant, sort_by, Restaurant.id)
         if sort_by == "total_score":
             sort_column = RestaurantScore.total_score
+        elif sort_by == "ml_score":
+            sort_column = RestaurantMLScore.composite_score
         if sort_order == "desc":
             sort_column = sort_column.desc()
         query = query.order_by(sort_column)

@@ -76,6 +76,8 @@ export interface MonthlyKpiPoint {
   new_clients: number;
   lost_clients: number;
   cumulative_clients: number;
+  revenue_gained: number;
+  revenue_lost: number;
   estimated_revenue: number;
   traffic_clients: 'green' | 'yellow' | 'red';
   traffic_revenue: 'green' | 'yellow' | 'red';
@@ -93,6 +95,27 @@ export interface KpiEvolutionData {
     ingreso_esperado_por_cliente: number;
   }>;
   actual_total_revenue: number | null;
+}
+
+export interface KpiSettings {
+  revenue_green: number;
+  revenue_yellow: number;
+  clients_green: number;
+  clients_yellow: number;
+  new_clients_green: number;
+  new_clients_yellow: number;
+  max_clients: number;
+  max_kg_day: number;
+}
+
+export interface ClientByMonth {
+  id: number;
+  nombre: string;
+  zona: string | null;
+  tipo_cocina: string | null;
+  telefono: string | null;
+  monthly_revenue: number | null;
+  converted_at: string;
 }
 
 export interface TopProspect {

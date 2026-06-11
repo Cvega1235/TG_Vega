@@ -27,11 +27,11 @@ PRODUCT_DETAILS = [
     for name, price, consumption, adoption in _PRODUCTS
 ]
 
-# Expected monthly revenue per active client = Σ (price × consumption × adoption_rate)
-AVG_MONTHLY_REVENUE_PER_CLIENT: float = round(
-    sum(price * consumption * adoption for _, price, consumption, adoption in _PRODUCTS),
-    2,
-)
+# Expected monthly revenue per active client.
+# Based on: 40 kg/day × 20 working days = 800 kg/month capacity,
+# average price ~90 Bs/kg, distributed across 29 current clients.
+# 800 × 90 / 29 = 2,482.76 Bs/client/month
+AVG_MONTHLY_REVENUE_PER_CLIENT: float = 2482.76
 
 # Traffic light thresholds
 THRESHOLDS = {

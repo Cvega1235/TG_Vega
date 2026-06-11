@@ -12,6 +12,7 @@ from app.restaurants.models import (  # noqa: F401
     Restaurant, RestaurantNote, RestaurantStatusChange,
     RestaurantScore, ScrapingImport, RestaurantMLScore, MLRunMetadata,
 )
+from app.dashboard.models import KpiSettings  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

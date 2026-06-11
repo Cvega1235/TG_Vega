@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspect, ClientHistoryData, RecentSummary, KpiEvolutionData } from '../types/dashboard';
+import type { DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspect, ClientHistoryData, RecentSummary, KpiEvolutionData, ClientByMonth, KpiSettings } from '../types/dashboard';
 
 function fuenteParam(fuente: unknown): Record<string, string> {
   return typeof fuente === 'string' && fuente ? { fuente } : {};
@@ -62,5 +62,20 @@ export async function getRecentSummary(days: number): Promise<RecentSummary> {
 
 export async function getKpiEvolution(): Promise<KpiEvolutionData> {
   const res = await apiClient.get<KpiEvolutionData>('/dashboard/kpi-evolution');
+  return res.data;
+}
+
+export async function getKpiSettings(): Promise<KpiSettings> {
+  const res = await apiClient.get<KpiSettings>('/dashboard/kpi-settings');
+  return res.data;
+}
+
+export async function updateKpiSettings(data: KpiSettings): Promise<KpiSettings> {
+  const res = await apiClient.put<KpiSettings>('/dashboard/kpi-settings', data);
+  return res.data;
+}
+
+export async function getClientsByMonth(month: string): Promise<ClientByMonth[]> {
+  const res = await apiClient.get<ClientByMonth[]>('/dashboard/clients-by-month', { params: { month } });
   return res.data;
 }

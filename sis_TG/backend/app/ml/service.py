@@ -448,7 +448,7 @@ class MLService:
         return query.filter(~or_(*conditions))
 
     def get_top_prospects(self, limit: int = 20, include_clients: bool = False) -> list[TopProspectResponse]:
-        """Obtiene los top prospectos ordenados por score heurístico (pesos configurables)."""
+        """Obtiene los top prospectos ordenados por score compuesto ML."""
         query = (
             self.db.query(Restaurant, RestaurantMLScore, RestaurantScore)
             .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)

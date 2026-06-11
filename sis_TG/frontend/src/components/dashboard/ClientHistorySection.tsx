@@ -78,12 +78,6 @@ export default function ClientHistorySection({ data }: Props) {
           </ul>
         )}
 
-        {data && (
-          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-            <p className="text-2xl font-bold text-primary-700">{data.total_clients}</p>
-            <p className="text-xs text-gray-400 mt-0.5">clientes totales</p>
-          </div>
-        )}
       </div>
     </div>
   );

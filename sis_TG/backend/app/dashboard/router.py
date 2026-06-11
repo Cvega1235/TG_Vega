@@ -6,7 +6,7 @@ from app.auth.dependencies import require_role
 from app.users.models import User
 from app.dashboard.schemas import (
     DashboardStats, ChartDataPoint, MapDataPoint, TopScoredItem, TopProspectItem,
-    ClientHistoryData, RecentSummary, KpiEvolutionData,
+    ClientHistoryData, RecentSummary, KpiEvolutionData, ClientByMonth, KpiSettingsData,
 )
 from app.dashboard.service import DashboardService
 from app.scoring.engine import calculate_all_scores
@@ -128,6 +128,33 @@ def get_kpi_evolution(
 ):
     service = DashboardService(db)
     return service.get_kpi_evolution()
+
+
+@router.get("/kpi-settings", response_model=KpiSettingsData)
+def get_kpi_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    return DashboardService(db).get_kpi_settings()
+
+
+@router.put("/kpi-settings", response_model=KpiSettingsData)
+def update_kpi_settings(
+    data: KpiSettingsData,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("analista")),
+):
+    return DashboardService(db).update_kpi_settings(data.model_dump())
+
+
+@router.get("/clients-by-month", response_model=list[ClientByMonth])
+def get_clients_by_month(
+    month: str = Query(..., description="Formato YYYY-MM"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("viewer")),
+):
+    service = DashboardService(db)
+    return service.get_clients_by_month(month)
 
 
 @router.post("/recalculate-scores")

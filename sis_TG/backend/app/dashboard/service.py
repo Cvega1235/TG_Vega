@@ -1,10 +1,21 @@
 from datetime import datetime, timezone, timedelta
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
 from app.restaurants.models import Restaurant, RestaurantScore, RestaurantMLScore, RestaurantStatusChange
+from app.dashboard.models import KpiSettings
 from app.dashboard.kpi_config import AVG_MONTHLY_REVENUE_PER_CLIENT, THRESHOLDS, PRODUCT_DETAILS
+
+_MESES_ES = {
+    1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
+}
+
+
+def _label_mes(dt: datetime) -> str:
+    return f"{_MESES_ES[dt.month]} {dt.year}"
 
 _EXCLUDED_CATEGORIES = [
     "panaderia", "panadería",
@@ -290,7 +301,7 @@ class DashboardService:
         monthly = [
             {
                 "month": row.month.strftime("%Y-%m"),
-                "label": row.month.strftime("%b %Y"),
+                "label": _label_mes(row.month),
                 "count": row.count,
             }
             for row in monthly_rows
@@ -307,7 +318,7 @@ class DashboardService:
             .join(RestaurantStatusChange, Restaurant.id == RestaurantStatusChange.restaurant_id)
             .filter(RestaurantStatusChange.new_status == "cliente")
             .order_by(RestaurantStatusChange.changed_at.desc())
-            .limit(5)
+            .limit(6)
             .all()
         )
 
@@ -343,7 +354,38 @@ class DashboardService:
             "new_this_month": new_this_month,
         }
 
+    def _get_thresholds(self) -> dict:
+        row = self.db.query(KpiSettings).first()
+        if row:
+            return {
+                "revenue_green": float(row.revenue_green),
+                "revenue_yellow": float(row.revenue_yellow),
+                "clients_green": row.clients_green,
+                "clients_yellow": row.clients_yellow,
+                "new_clients_green": row.new_clients_green,
+                "new_clients_yellow": row.new_clients_yellow,
+                "max_clients": row.max_clients,
+                "max_kg_day": float(row.max_kg_day),
+            }
+        return {**THRESHOLDS, "max_clients": 72, "max_kg_day": 40.0}
+
+    def get_kpi_settings(self) -> dict:
+        return self._get_thresholds()
+
+    def update_kpi_settings(self, data: dict) -> dict:
+        row = self.db.query(KpiSettings).first()
+        if row is None:
+            row = KpiSettings(**data)
+            self.db.add(row)
+        else:
+            for key, value in data.items():
+                setattr(row, key, value)
+        self.db.commit()
+        self.db.refresh(row)
+        return self._get_thresholds()
+
     def get_kpi_evolution(self) -> dict:
+        thresholds = self._get_thresholds()
         start_date = datetime.now(timezone.utc) - timedelta(days=365 * 3)
 
         # Primeras conversiones a "cliente" por mes
@@ -368,6 +410,26 @@ class DashboardService:
             .all()
         )
 
+        # Ingresos reales ganados por mes: monthly_revenue del cliente, o AVG como fallback
+        revenue_gained_rows = (
+            self.db.query(
+                RestaurantStatusChange.restaurant_id,
+                func.min(RestaurantStatusChange.changed_at).label("first_at"),
+                func.coalesce(Restaurant.monthly_revenue, AVG_MONTHLY_REVENUE_PER_CLIENT).label("revenue"),
+            )
+            .join(Restaurant, Restaurant.id == RestaurantStatusChange.restaurant_id)
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                RestaurantStatusChange.changed_at >= start_date,
+            )
+            .group_by(RestaurantStatusChange.restaurant_id, Restaurant.monthly_revenue)
+            .all()
+        )
+        revenue_gained_by_month: dict = {}
+        for row in revenue_gained_rows:
+            key = row.first_at.strftime("%Y-%m")
+            revenue_gained_by_month[key] = revenue_gained_by_month.get(key, 0.0) + float(row.revenue)
+
         # Restaurantes que alguna vez fueron clientes
         ever_client = (
             self.db.query(RestaurantStatusChange.restaurant_id)
@@ -391,6 +453,24 @@ class DashboardService:
             .all()
         )
 
+        revenue_lost_rows = (
+            self.db.query(
+                RestaurantStatusChange.changed_at,
+                func.coalesce(Restaurant.monthly_revenue, AVG_MONTHLY_REVENUE_PER_CLIENT).label("revenue"),
+            )
+            .join(Restaurant, Restaurant.id == RestaurantStatusChange.restaurant_id)
+            .filter(
+                RestaurantStatusChange.new_status == "no_interesado",
+                RestaurantStatusChange.changed_at >= start_date,
+                RestaurantStatusChange.restaurant_id.in_(ever_client),
+            )
+            .all()
+        )
+        revenue_lost_by_month: dict = {}
+        for row in revenue_lost_rows:
+            key = row.changed_at.strftime("%Y-%m")
+            revenue_lost_by_month[key] = revenue_lost_by_month.get(key, 0.0) + float(row.revenue)
+
         lost_by_month = {row.month: row.lost_clients for row in lost_rows}
 
         # Combinar meses de ambas queries
@@ -401,30 +481,37 @@ class DashboardService:
         gained_by_month = {row.month: row.new_clients for row in gained_rows}
 
         cumulative = 0
+        cumulative_revenue = 0.0
         monthly = []
         for month_dt in all_months:
             new_clients = gained_by_month.get(month_dt, 0)
             lost_clients = lost_by_month.get(month_dt, 0)
+            month_key = month_dt.strftime("%Y-%m")
+            revenue_gained = round(revenue_gained_by_month.get(month_key, 0.0), 2)
+            revenue_lost = round(revenue_lost_by_month.get(month_key, 0.0), 2)
             cumulative = cumulative + new_clients - lost_clients
-            estimated_revenue = round(cumulative * AVG_MONTHLY_REVENUE_PER_CLIENT, 2)
+            cumulative_revenue = max(0.0, cumulative_revenue + revenue_gained - revenue_lost)
+            estimated_revenue = round(cumulative_revenue, 2)
 
             traffic_clients = (
-                "green" if cumulative >= THRESHOLDS["clients_green"]
-                else "yellow" if cumulative >= THRESHOLDS["clients_yellow"]
+                "green" if cumulative >= thresholds["clients_green"]
+                else "yellow" if cumulative >= thresholds["clients_yellow"]
                 else "red"
             )
             traffic_revenue = (
-                "green" if estimated_revenue >= THRESHOLDS["revenue_green"]
-                else "yellow" if estimated_revenue >= THRESHOLDS["revenue_yellow"]
+                "green" if estimated_revenue >= thresholds["revenue_green"]
+                else "yellow" if estimated_revenue >= thresholds["revenue_yellow"]
                 else "red"
             )
 
             monthly.append({
                 "month": month_dt.strftime("%Y-%m"),
-                "label": month_dt.strftime("%b %Y"),
+                "label": _label_mes(month_dt),
                 "new_clients": new_clients,
                 "lost_clients": lost_clients,
                 "cumulative_clients": cumulative,
+                "revenue_gained": revenue_gained,
+                "revenue_lost": revenue_lost,
                 "estimated_revenue": estimated_revenue,
                 "traffic_clients": traffic_clients,
                 "traffic_revenue": traffic_revenue,
@@ -442,10 +529,60 @@ class DashboardService:
         return {
             "monthly": monthly,
             "avg_revenue_per_client": AVG_MONTHLY_REVENUE_PER_CLIENT,
-            "thresholds": THRESHOLDS,
+            "thresholds": thresholds,
             "product_details": PRODUCT_DETAILS,
             "actual_total_revenue": float(actual_total_revenue) if actual_total_revenue else None,
         }
+
+    def get_clients_by_month(self, month: str) -> list[dict]:
+        try:
+            month_dt = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de mes invalido. Usa YYYY-MM")
+
+        next_month = (month_dt + timedelta(days=32)).replace(day=1)
+
+        first_conversion = (
+            self.db.query(
+                RestaurantStatusChange.restaurant_id,
+                func.min(RestaurantStatusChange.changed_at).label("first_at"),
+            )
+            .filter(RestaurantStatusChange.new_status == "cliente")
+            .group_by(RestaurantStatusChange.restaurant_id)
+            .subquery()
+        )
+
+        rows = (
+            self.db.query(
+                Restaurant.id,
+                Restaurant.nombre,
+                Restaurant.zona,
+                Restaurant.tipo_cocina,
+                Restaurant.telefono,
+                Restaurant.monthly_revenue,
+                first_conversion.c.first_at,
+            )
+            .join(first_conversion, Restaurant.id == first_conversion.c.restaurant_id)
+            .filter(
+                first_conversion.c.first_at >= month_dt,
+                first_conversion.c.first_at < next_month,
+            )
+            .order_by(Restaurant.monthly_revenue.desc().nullslast())
+            .all()
+        )
+
+        return [
+            {
+                "id": row[0],
+                "nombre": row[1],
+                "zona": row[2],
+                "tipo_cocina": row[3],
+                "telefono": row[4],
+                "monthly_revenue": float(row[5]) if row[5] is not None else None,
+                "converted_at": row[6].isoformat(),
+            }
+            for row in rows
+        ]
 
     def get_recent_summary(self, days: int = 30) -> dict:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
@@ -489,17 +626,21 @@ class DashboardService:
         }
 
     def get_top_scores(self, limit: int = 15) -> list[dict]:
-        rows = (
+        query = (
             self.db.query(
                 Restaurant.id, Restaurant.nombre, Restaurant.zona,
                 Restaurant.fuente, Restaurant.rating, Restaurant.status,
                 RestaurantScore.total_score, Restaurant.tipo_cocina,
                 Restaurant.tiene_embutidos,
-                RestaurantMLScore.composite_score,
             )
-            .join(RestaurantScore)
-            .outerjoin(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
-            .order_by(func.coalesce(RestaurantMLScore.composite_score, RestaurantScore.total_score).desc())
+            .join(RestaurantMLScore, Restaurant.id == RestaurantMLScore.restaurant_id)
+            .outerjoin(RestaurantScore, Restaurant.id == RestaurantScore.restaurant_id)
+            .filter(Restaurant.status.notin_(["cliente", "no_interesado"]))
+        )
+        query = _exclude_non_prospects(query)
+        rows = (
+            query
+            .order_by(RestaurantScore.total_score.desc().nulls_last())
             .limit(limit)
             .all()
         )
@@ -511,7 +652,7 @@ class DashboardService:
                 "fuente": row[3],
                 "rating": float(row[4]) if row[4] else None,
                 "status": row[5],
-                "total_score": float(row[9]) if row[9] is not None else float(row[6]),
+                "total_score": float(row[6]) if row[6] else 0.0,
                 "tipo_cocina": row[7],
                 "tiene_embutidos": row[8],
             }

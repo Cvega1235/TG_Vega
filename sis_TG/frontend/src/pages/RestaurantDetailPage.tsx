@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -365,14 +366,14 @@ export default function RestaurantDetailPage() {
       )}
 
       {/* Revenue modal — shown when converting a restaurant to 'cliente' */}
-      {revenueModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      {revenueModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-1">Nuevo cliente</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Ingresa el ingreso mensual estimado para <span className="font-medium">{restaurant.nombre}</span>.
+              Registra el monto mensual para <span className="font-medium">{restaurant.nombre}</span>.
             </p>
-            <label className="block text-sm text-gray-600 mb-1">Ingreso mensual (Bs)</label>
+            <label className="block text-sm text-gray-600 mb-1">Monto mensual (Bs)</label>
             <input
               type="number"
               min="0"
@@ -417,7 +418,8 @@ export default function RestaurantDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
