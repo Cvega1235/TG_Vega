@@ -19,9 +19,9 @@ export default function RestaurantDetailPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [revenueModalOpen, setRevenueModalOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
-  const [pendingRevenue, setPendingRevenue] = useState('');
+  const [productQty, setProductQty] = useState<Record<string, string>>({});
   const [editingRevenue, setEditingRevenue] = useState(false);
-  const [editRevenueValue, setEditRevenueValue] = useState('');
+  const [editProductQty, setEditProductQty] = useState<Record<string, string>>({});
 
   const { data: restaurant, isLoading } = useQuery({
     queryKey: ['restaurant', restaurantId],
@@ -51,6 +51,9 @@ export default function RestaurantDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['restaurant', restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['history', restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['kpiEvolution'] });
+      queryClient.invalidateQueries({ queryKey: ['clientHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['restaurants'] });
     },
   });
 
@@ -113,7 +116,7 @@ export default function RestaurantDetailPage() {
                   const newStatus = e.target.value;
                   if (newStatus === 'cliente' && restaurant.status !== 'cliente') {
                     setPendingStatus(newStatus);
-                    setPendingRevenue('');
+                    setProductQty({});
                     setRevenueModalOpen(true);
                   } else {
                     statusMutation.mutate({ status: newStatus });
@@ -301,59 +304,27 @@ export default function RestaurantDetailPage() {
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-gray-700">Ingresos del Cliente</h3>
-            {!editingRevenue && (
-              <button
-                onClick={() => {
-                  setEditRevenueValue(restaurant.monthly_revenue?.toString() ?? '');
-                  setEditingRevenue(true);
-                }}
-                className="text-xs text-primary-600 hover:underline"
-              >
-                Editar
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setEditProductQty({});
+                setEditingRevenue(true);
+              }}
+              className="text-xs text-primary-600 hover:underline"
+            >
+              Editar
+            </button>
           </div>
-          {editingRevenue ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={editRevenueValue}
-                onChange={(e) => setEditRevenueValue(e.target.value)}
-                placeholder="Ingreso mensual en Bs"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-              />
-              <button
-                onClick={() => {
-                  const val = parseFloat(editRevenueValue);
-                  if (!isNaN(val) && val >= 0) revenueMutation.mutate(val);
-                }}
-                disabled={revenueMutation.isPending || !editRevenueValue}
-                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setEditingRevenue(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p className="text-3xl font-bold text-gray-800 tabular-nums">
-                {restaurant.monthly_revenue != null
-                  ? `${restaurant.monthly_revenue.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs`
-                  : <span className="text-gray-400 text-base font-normal">Sin valor registrado</span>
-                }
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {restaurant.monthly_revenue != null ? 'Ingreso mensual estimado / real' : 'No se ha ingresado aún'}
-              </p>
-            </div>
-          )}
+          <div>
+            <p className="text-3xl font-bold text-gray-800 tabular-nums">
+              {restaurant.monthly_revenue != null
+                ? `${restaurant.monthly_revenue.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs`
+                : <span className="text-gray-400 text-base font-normal">Sin valor registrado</span>
+              }
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {restaurant.monthly_revenue != null ? 'Ingreso mensual estimado / real' : 'No se ha ingresado aún'}
+            </p>
+          </div>
         </div>
       )}
 
@@ -367,33 +338,75 @@ export default function RestaurantDetailPage() {
 
       {/* Revenue modal — shown when converting a restaurant to 'cliente' */}
       {revenueModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Nuevo cliente</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Registra el monto mensual para <span className="font-medium">{restaurant.nombre}</span>.
-            </p>
-            <label className="block text-sm text-gray-600 mb-1">Monto mensual (Bs)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={pendingRevenue}
-              onChange={(e) => setPendingRevenue(e.target.value)}
-              placeholder="Ej: 5900"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none mb-4"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && pendingRevenue) {
-                  const rev = parseFloat(pendingRevenue);
-                  if (!isNaN(rev) && rev >= 0 && pendingStatus) {
-                    statusMutation.mutate({ status: pendingStatus, monthly_revenue: rev });
-                    setRevenueModalOpen(false);
-                  }
-                }
-              }}
-            />
-            <div className="flex justify-end gap-2">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 pb-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800">Nuevo cliente</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Registra los productos y cantidades mensuales para <span className="font-medium">{restaurant.nombre}</span>.
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6 pt-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                    <th className="text-left pb-2 font-medium">Producto</th>
+                    <th className="text-center pb-2 font-medium">Precio (Bs./kg)</th>
+                    <th className="text-center pb-2 font-medium">Kg / mes</th>
+                    <th className="text-right pb-2 font-medium">Total (Bs.)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {DON_PIOTR_PRODUCTS.map(({ nombre, precio }) => {
+                    const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                    const subtotal = kg * precio;
+                    return (
+                      <tr key={nombre}>
+                        <td className="py-2.5 pr-4 text-gray-700 font-medium">{nombre}</td>
+                        <td className="py-2.5 text-center text-gray-500">{precio}</td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={productQty[nombre] ?? ''}
+                            onChange={(e) =>
+                              setProductQty((prev) => ({ ...prev, [nombre]: e.target.value }))
+                            }
+                            placeholder="0"
+                            className="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm text-center focus:ring-2 focus:ring-primary-500 outline-none mx-auto block"
+                          />
+                        </td>
+                        <td className="py-2.5 text-right text-gray-700 tabular-nums">
+                          {subtotal > 0
+                            ? subtotal.toLocaleString('es-BO', { minimumFractionDigits: 2 })
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300">
+                    <td colSpan={3} className="pt-3 text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                      Total mensual
+                    </td>
+                    <td className="pt-3 text-right text-base font-bold text-primary-600 tabular-nums">
+                      {(() => {
+                        const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                          const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                          return sum + kg * precio;
+                        }, 0);
+                        return total > 0
+                          ? `${total.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.`
+                          : '0.00 Bs.';
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div className="p-6 pt-4 border-t border-gray-100 flex justify-end gap-2">
               <button
                 onClick={() => {
                   setRevenueModalOpen(false);
@@ -405,13 +418,16 @@ export default function RestaurantDetailPage() {
               </button>
               <button
                 onClick={() => {
-                  const rev = parseFloat(pendingRevenue);
-                  if (!isNaN(rev) && rev >= 0 && pendingStatus) {
-                    statusMutation.mutate({ status: pendingStatus, monthly_revenue: rev });
+                  const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                    const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                    return sum + kg * precio;
+                  }, 0);
+                  if (total > 0 && pendingStatus) {
+                    statusMutation.mutate({ status: pendingStatus, monthly_revenue: total });
                     setRevenueModalOpen(false);
                   }
                 }}
-                disabled={!pendingRevenue || isNaN(parseFloat(pendingRevenue))}
+                disabled={DON_PIOTR_PRODUCTS.every(({ nombre }) => !parseFloat(productQty[nombre] ?? ''))}
                 className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
               >
                 Confirmar
@@ -421,9 +437,124 @@ export default function RestaurantDetailPage() {
         </div>,
         document.body
       )}
+
+      {/* Edit revenue modal — same product table, saves via revenueMutation */}
+      {editingRevenue && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 pb-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800">Editar ingresos del cliente</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Actualiza los productos y cantidades mensuales para{' '}
+                <span className="font-medium">{restaurant.nombre}</span>.
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6 pt-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                    <th className="text-left pb-2 font-medium">Producto</th>
+                    <th className="text-center pb-2 font-medium">Precio (Bs./kg)</th>
+                    <th className="text-center pb-2 font-medium">Kg / mes</th>
+                    <th className="text-right pb-2 font-medium">Total (Bs.)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {DON_PIOTR_PRODUCTS.map(({ nombre, precio }) => {
+                    const kg = parseFloat(editProductQty[nombre] ?? '') || 0;
+                    const subtotal = kg * precio;
+                    return (
+                      <tr key={nombre}>
+                        <td className="py-2.5 pr-4 text-gray-700 font-medium">{nombre}</td>
+                        <td className="py-2.5 text-center text-gray-500">{precio}</td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={editProductQty[nombre] ?? ''}
+                            onChange={(e) =>
+                              setEditProductQty((prev) => ({ ...prev, [nombre]: e.target.value }))
+                            }
+                            placeholder="0"
+                            className="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm text-center focus:ring-2 focus:ring-primary-500 outline-none mx-auto block"
+                          />
+                        </td>
+                        <td className="py-2.5 text-right text-gray-700 tabular-nums">
+                          {subtotal > 0
+                            ? subtotal.toLocaleString('es-BO', { minimumFractionDigits: 2 })
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300">
+                    <td colSpan={3} className="pt-3 text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                      Total mensual
+                    </td>
+                    <td className="pt-3 text-right text-base font-bold text-primary-600 tabular-nums">
+                      {(() => {
+                        const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                          const kg = parseFloat(editProductQty[nombre] ?? '') || 0;
+                          return sum + kg * precio;
+                        }, 0);
+                        return total > 0
+                          ? `${total.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.`
+                          : '0.00 Bs.';
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div className="p-6 pt-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingRevenue(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                    const kg = parseFloat(editProductQty[nombre] ?? '') || 0;
+                    return sum + kg * precio;
+                  }, 0);
+                  if (total > 0) {
+                    revenueMutation.mutate(total);
+                    setEditingRevenue(false);
+                  }
+                }}
+                disabled={
+                  revenueMutation.isPending ||
+                  DON_PIOTR_PRODUCTS.every(({ nombre }) => !parseFloat(editProductQty[nombre] ?? ''))
+                }
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
+
+const DON_PIOTR_PRODUCTS: { nombre: string; precio: number }[] = [
+  { nombre: 'Kielbasa',           precio: 60  },
+  { nombre: 'Chorizo Parrillero', precio: 54  },
+  { nombre: 'Jamón Inglés',       precio: 60  },
+  { nombre: 'Costilla Ahumada',   precio: 68  },
+  { nombre: 'Jamón Ahumado',      precio: 68  },
+  { nombre: 'Jamón Crudo',        precio: 120 },
+  { nombre: 'Tocino',             precio: 70  },
+  { nombre: 'Salame',             precio: 55  },
+  { nombre: 'Cabanosy',           precio: 65  },
+];
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;

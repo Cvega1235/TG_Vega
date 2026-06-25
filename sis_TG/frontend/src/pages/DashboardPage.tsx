@@ -5,7 +5,6 @@ import ChartByZone from '../components/dashboard/ChartByZone';
 import TopScoredTable from '../components/dashboard/TopScoredTable';
 import ClientHistorySection from '../components/dashboard/ClientHistorySection';
 import KpiEvolutionSection from '../components/dashboard/KpiEvolutionSection';
-import ExportMenu from '../components/common/ExportMenu';
 
 export default function DashboardPage() {
   const { data: zoneData } = useQuery({ queryKey: ['byZone'], queryFn: () => getByZone() });
@@ -18,7 +17,6 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard</h2>
-        <ExportMenu filters={{}} />
       </div>
 
       <KpiEvolutionSection data={kpiEvolution} />

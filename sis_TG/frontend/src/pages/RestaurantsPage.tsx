@@ -205,6 +205,9 @@ export default function RestaurantsPage() {
   const [scrapingSource, setScrapingSource] = useState<'all' | 'bolivia' | 'gmaps'>('all');
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeJob, setActiveJob] = useState<ScrapingJob | null>(null);
+  const [revenueModalOpen, setRevenueModalOpen] = useState(false);
+  const [pendingClient, setPendingClient] = useState<{ id: number; nombre: string } | null>(null);
+  const [productQty, setProductQty] = useState<Record<string, string>>({});
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [filters, setFilters] = useState<RestaurantFilters>(() => {
@@ -277,9 +280,14 @@ export default function RestaurantsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
-      updateRestaurantStatus(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['restaurants'] }),
+    mutationFn: ({ id, status, monthly_revenue }: { id: number; status: string; monthly_revenue?: number }) =>
+      updateRestaurantStatus(id, status, monthly_revenue),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['restaurants'] });
+      queryClient.invalidateQueries({ queryKey: ['kpiEvolution'] });
+      queryClient.invalidateQueries({ queryKey: ['clientHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
   });
 
   const updateFilter = (key: string, value: string) => {
@@ -333,6 +341,7 @@ export default function RestaurantsPage() {
   const isScrapingRunning = activeJob?.status === 'running';
 
   return (
+    <>
     <div className="space-y-6">
       {/* Modal de confirmación */}
       {showConfirm && (
@@ -517,7 +526,16 @@ export default function RestaurantsPage() {
                       <td className="py-2.5 px-3 sm:px-4" onClick={(e) => e.stopPropagation()}>
                         <select
                           value={r.status}
-                          onChange={(e) => statusMutation.mutate({ id: r.id, status: e.target.value })}
+                          onChange={(e) => {
+                            const newStatus = e.target.value;
+                            if (newStatus === 'cliente' && r.status !== 'cliente') {
+                              setPendingClient({ id: r.id, nombre: r.nombre });
+                              setProductQty({});
+                              setRevenueModalOpen(true);
+                            } else {
+                              statusMutation.mutate({ id: r.id, status: newStatus });
+                            }
+                          }}
                           className="text-xs border border-gray-200 rounded px-1.5 py-1 w-full max-w-[120px]"
                         >
                           {ALL_STATUSES.map((s) => (
@@ -573,5 +591,121 @@ export default function RestaurantsPage() {
         )}
       </div>
     </div>
+    {revenueModalOpen && pendingClient && (
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+              <div className="p-6 pb-4 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800">Nuevo cliente</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Registra los productos y cantidades mensuales para{' '}
+                  <span className="font-medium">{pendingClient.nombre}</span>.
+                </p>
+              </div>
+              <div className="overflow-y-auto flex-1 p-6 pt-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                      <th className="text-left pb-2 font-medium">Producto</th>
+                      <th className="text-center pb-2 font-medium">Precio (Bs./kg)</th>
+                      <th className="text-center pb-2 font-medium">Kg / mes</th>
+                      <th className="text-right pb-2 font-medium">Total (Bs.)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {DON_PIOTR_PRODUCTS.map(({ nombre, precio }) => {
+                      const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                      const subtotal = kg * precio;
+                      return (
+                        <tr key={nombre}>
+                          <td className="py-2.5 pr-4 text-gray-700 font-medium">{nombre}</td>
+                          <td className="py-2.5 text-center text-gray-500">{precio}</td>
+                          <td className="py-2.5 px-3">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={productQty[nombre] ?? ''}
+                              onChange={(e) =>
+                                setProductQty((prev) => ({ ...prev, [nombre]: e.target.value }))
+                              }
+                              placeholder="0"
+                              className="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm text-center focus:ring-2 focus:ring-primary-500 outline-none mx-auto block"
+                            />
+                          </td>
+                          <td className="py-2.5 text-right text-gray-700 tabular-nums">
+                            {subtotal > 0
+                              ? subtotal.toLocaleString('es-BO', { minimumFractionDigits: 2 })
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-300">
+                      <td colSpan={3} className="pt-3 text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                        Total mensual
+                      </td>
+                      <td className="pt-3 text-right text-base font-bold text-primary-600 tabular-nums">
+                        {(() => {
+                          const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                            const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                            return sum + kg * precio;
+                          }, 0);
+                          return total > 0
+                            ? `${total.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.`
+                            : '0.00 Bs.';
+                        })()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div className="p-6 pt-4 border-t border-gray-100 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setRevenueModalOpen(false);
+                    setPendingClient(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const total = DON_PIOTR_PRODUCTS.reduce((sum, { nombre, precio }) => {
+                      const kg = parseFloat(productQty[nombre] ?? '') || 0;
+                      return sum + kg * precio;
+                    }, 0);
+                    if (total > 0 && pendingClient) {
+                      statusMutation.mutate({ id: pendingClient.id, status: 'cliente', monthly_revenue: total });
+                      setRevenueModalOpen(false);
+                      setPendingClient(null);
+                    }
+                  }}
+                  disabled={DON_PIOTR_PRODUCTS.every(({ nombre }) => !parseFloat(productQty[nombre] ?? ''))}
+                  className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+    </>
   );
 }
+
+const DON_PIOTR_PRODUCTS: { nombre: string; precio: number }[] = [
+  { nombre: 'Kielbasa',           precio: 60  },
+  { nombre: 'Chorizo Parrillero', precio: 54  },
+  { nombre: 'Jamón Inglés',       precio: 60  },
+  { nombre: 'Costilla Ahumada',   precio: 68  },
+  { nombre: 'Jamón Ahumado',      precio: 68  },
+  { nombre: 'Jamón Crudo',        precio: 120 },
+  { nombre: 'Tocino',             precio: 70  },
+  { nombre: 'Salame',             precio: 55  },
+  { nombre: 'Cabanosy',           precio: 65  },
+];

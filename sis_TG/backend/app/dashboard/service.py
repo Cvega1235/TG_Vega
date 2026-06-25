@@ -388,13 +388,38 @@ class DashboardService:
         thresholds = self._get_thresholds()
         start_date = datetime.now(timezone.utc) - timedelta(days=365 * 3)
 
-        # Primeras conversiones a "cliente" por mes
+        # Restaurants que alguna vez pasaron a "no_interesado" (pérdida legítima, sin importar estado actual)
+        ever_churned_ids = (
+            self.db.query(RestaurantStatusChange.restaurant_id)
+            .filter(RestaurantStatusChange.new_status == "no_interesado")
+            .subquery()
+        )
+
+        # Clientes "legítimos": actualmente "cliente" O que alguna vez pasaron a "no_interesado".
+        # Excluye los que volvieron directamente a "nuevo/contactado/interesado" sin pasar por "no_interesado" (error de carga).
+        legitimate_clients = (
+            self.db.query(RestaurantStatusChange.restaurant_id)
+            .join(Restaurant, Restaurant.id == RestaurantStatusChange.restaurant_id)
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                or_(
+                    Restaurant.status == "cliente",
+                    RestaurantStatusChange.restaurant_id.in_(ever_churned_ids),
+                ),
+            )
+            .subquery()
+        )
+
+        # Primera conversión a "cliente" de cada cliente legítimo
         first_conversion = (
             self.db.query(
                 RestaurantStatusChange.restaurant_id,
                 func.min(RestaurantStatusChange.changed_at).label("first_at"),
             )
-            .filter(RestaurantStatusChange.new_status == "cliente")
+            .filter(
+                RestaurantStatusChange.new_status == "cliente",
+                RestaurantStatusChange.restaurant_id.in_(legitimate_clients),
+            )
             .group_by(RestaurantStatusChange.restaurant_id)
             .subquery()
         )
@@ -410,7 +435,7 @@ class DashboardService:
             .all()
         )
 
-        # Ingresos reales ganados por mes: monthly_revenue del cliente, o AVG como fallback
+        # Ingresos de clientes legítimos agrupados por su mes de incorporación
         revenue_gained_rows = (
             self.db.query(
                 RestaurantStatusChange.restaurant_id,
@@ -421,6 +446,7 @@ class DashboardService:
             .filter(
                 RestaurantStatusChange.new_status == "cliente",
                 RestaurantStatusChange.changed_at >= start_date,
+                RestaurantStatusChange.restaurant_id.in_(legitimate_clients),
             )
             .group_by(RestaurantStatusChange.restaurant_id, Restaurant.monthly_revenue)
             .all()
@@ -430,14 +456,7 @@ class DashboardService:
             key = row.first_at.strftime("%Y-%m")
             revenue_gained_by_month[key] = revenue_gained_by_month.get(key, 0.0) + float(row.revenue)
 
-        # Restaurantes que alguna vez fueron clientes
-        ever_client = (
-            self.db.query(RestaurantStatusChange.restaurant_id)
-            .filter(RestaurantStatusChange.new_status == "cliente")
-            .subquery()
-        )
-
-        # Pérdidas: pasaron a no_interesado habiendo sido clientes antes
+        # Pérdidas reales: pasaron a "no_interesado" siendo clientes legítimos
         lost_rows = (
             self.db.query(
                 func.date_trunc("month", RestaurantStatusChange.changed_at).label("month"),
@@ -446,7 +465,7 @@ class DashboardService:
             .filter(
                 RestaurantStatusChange.new_status == "no_interesado",
                 RestaurantStatusChange.changed_at >= start_date,
-                RestaurantStatusChange.restaurant_id.in_(ever_client),
+                RestaurantStatusChange.restaurant_id.in_(legitimate_clients),
             )
             .group_by("month")
             .order_by("month")
@@ -462,7 +481,7 @@ class DashboardService:
             .filter(
                 RestaurantStatusChange.new_status == "no_interesado",
                 RestaurantStatusChange.changed_at >= start_date,
-                RestaurantStatusChange.restaurant_id.in_(ever_client),
+                RestaurantStatusChange.restaurant_id.in_(legitimate_clients),
             )
             .all()
         )
@@ -473,11 +492,9 @@ class DashboardService:
 
         lost_by_month = {row.month: row.lost_clients for row in lost_rows}
 
-        # Combinar meses de ambas queries
         all_months = sorted(set(
             [row.month for row in gained_rows] + list(lost_by_month.keys())
         ))
-
         gained_by_month = {row.month: row.new_clients for row in gained_rows}
 
         cumulative = 0
@@ -526,12 +543,19 @@ class DashboardService:
             .scalar()
         )
 
+        actual_total_clients = (
+            self.db.query(func.count(Restaurant.id))
+            .filter(Restaurant.status == "cliente")
+            .scalar() or 0
+        )
+
         return {
             "monthly": monthly,
             "avg_revenue_per_client": AVG_MONTHLY_REVENUE_PER_CLIENT,
             "thresholds": thresholds,
             "product_details": PRODUCT_DETAILS,
             "actual_total_revenue": float(actual_total_revenue) if actual_total_revenue else None,
+            "actual_total_clients": actual_total_clients,
         }
 
     def get_clients_by_month(self, month: str) -> list[dict]:

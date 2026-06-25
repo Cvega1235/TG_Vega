@@ -95,6 +95,7 @@ export interface KpiEvolutionData {
     ingreso_esperado_por_cliente: number;
   }>;
   actual_total_revenue: number | null;
+  actual_total_clients: number;
 }
 
 export interface KpiSettings {

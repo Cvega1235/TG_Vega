@@ -115,7 +115,7 @@ export default function KpiEvolutionSection({ data }: Props) {
   const maxClients = kpiSettings?.max_clients ?? 72;
   const maxKgDay = kpiSettings?.max_kg_day ?? 40;
   const alertClients = Math.floor(maxClients * 0.9);
-  const currentClients = lastPoint.cumulative_clients;
+  const currentClients = data.actual_total_clients ?? lastPoint.cumulative_clients;
   const utilization = currentClients / maxClients;
   const utilizationPct = Math.min(100, Math.round(utilization * 100));
   const currentKgDay = Math.round(utilization * maxKgDay * 10) / 10;
@@ -446,7 +446,7 @@ export default function KpiEvolutionSection({ data }: Props) {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-800">Evolución Comercial</h3>
+        <h3 className="text-base font-semibold text-gray-800">Evolución</h3>
         <button
           onClick={() => {
             setGoalsForm(kpiSettings ?? { ...(data.thresholds as unknown as KpiSettings), max_clients: 72 });
@@ -509,8 +509,8 @@ export default function KpiEvolutionSection({ data }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           label="Clientes activos"
-          value={lastPoint.cumulative_clients.toString()}
-          sub="acumulado total"
+          value={currentClients.toString()}
+          sub="clientes actuales"
           traffic={lastPoint.traffic_clients}
         />
         {data.actual_total_revenue != null ? (
